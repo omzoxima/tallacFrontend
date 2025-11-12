@@ -47,9 +47,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Wait for user context to finish loading
+    // Wait for user context to finish loading (with timeout)
     if (userLoading) {
-      return;
+      // Set a timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        // If loading takes too long, redirect to login
+        console.warn('User context loading timeout, redirecting to login');
+        router.push('/login');
+      }, 5000); // 5 second timeout
+      
+      return () => clearTimeout(timeoutId);
     }
     
     // If no user after loading, redirect to login

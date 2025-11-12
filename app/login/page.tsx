@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
 import { Mail, Lock, LogIn } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: userLoading } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,12 +15,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Pre-fill email from URL query parameters (if present)
+  // SECURITY: Never read password from URL - it's a security risk
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const emailParam = searchParams?.get('email');
+      
+      if (emailParam) {
+        // Pre-fill email from URL
+        setEmail(decodeURIComponent(emailParam));
+        
+        // Remove email and password from URL for security
+        // Password should NEVER be in URL, but remove it if present
+        const url = new URL(window.location.href);
+        url.searchParams.delete('email');
+        url.searchParams.delete('password'); // Remove password if present
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams]);
+
   // Redirect if user is already authenticated (but not if password change required)
   useEffect(() => {
     if (!userLoading && user && user.id && !user.password_change_required) {
-      window.location.href = '/';
+      router.push('/');
     }
-  }, [user, userLoading]);
+  }, [user, userLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,9 +73,8 @@ export default function LoginPage() {
         ? '/change-password'
         : '/';
       
-      // Use window.location.href for clean redirect (prevents React state issues)
-      // This ensures a clean page load with proper authentication state
-      window.location.href = redirectPath;
+      // Use router.push for cleaner navigation
+      router.push(redirectPath);
     } catch (error: any) {
       setError(error.message || 'An error occurred. Please try again.');
       console.error('Login error:', error);
@@ -188,5 +210,20 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <div className="text-white">Loading...</div>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

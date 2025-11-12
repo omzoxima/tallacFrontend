@@ -9,6 +9,25 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Set timeout for loading to prevent infinite loading
+  useEffect(() => {
+    if (loading) {
+      const timeoutId = setTimeout(() => {
+        // If loading takes too long (5 seconds), assume user is not authenticated
+        console.warn('RouteGuard: Loading timeout, redirecting to login');
+        setLoadingTimeout(true);
+        if (pathname !== '/login') {
+          router.push('/login');
+        }
+      }, 5000); // 5 second timeout
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading, pathname, router]);
 
   // Public routes that don't require authentication
   const publicRoutes = ['/login'];
@@ -67,7 +86,8 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
 
   // Show loading while checking authentication (for all protected routes)
   // This prevents showing header/content before authentication is verified
-  if (loading) {
+  // But if loading times out, redirect to login
+  if (loading && !loadingTimeout) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -76,6 +96,11 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // If loading timed out, show nothing (will redirect to login)
+  if (loadingTimeout && pathname !== '/login') {
+    return null;
   }
 
   // For change-password page - user must be authenticated

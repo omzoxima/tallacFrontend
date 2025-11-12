@@ -79,7 +79,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Token format is valid and not expired, verify with API
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout (reduced from 5)
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for better reliability
       
       try {
         const response = await fetch(`${apiUrl}/api/auth/me`, {
@@ -103,6 +103,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem('token');
           setUser(null);
           setLoading(false);
+        } else if (response.status === 503 || response.status >= 500) {
+          // Server error or service unavailable - don't clear token, but don't set user
+          // This allows user to retry or wait
+          console.warn('API server error, keeping token but not setting user:', response.status);
+          setUser(null);
+          setLoading(false);
         } else {
           // Other error, clear token to be safe
           localStorage.removeItem('token');
@@ -112,10 +118,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } catch (apiError: any) {
         clearTimeout(timeoutId);
         
-        // If API call fails, don't trust the token - clear it and require login
-        // This prevents redirecting to change-password with invalid tokens
+        // If API call fails (network error, timeout, etc.), don't trust the token
+        // Clear it and require login to prevent infinite loading
         if (apiError.name === 'AbortError') {
           console.warn('API call timeout, clearing token for security');
+        } else if (apiError.name === 'TypeError' && apiError.message.includes('fetch')) {
+          console.warn('Network error - API not reachable, clearing token:', apiError.message);
         } else {
           console.warn('Failed to verify token with API, clearing token:', apiError);
         }
