@@ -11,14 +11,17 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  // Set timeout for loading to prevent infinite loading
+  // Set timeout for loading to prevent infinite loading (5 seconds)
   useEffect(() => {
     if (loading) {
       const timeoutId = setTimeout(() => {
         // If loading takes too long (5 seconds), assume user is not authenticated
-        console.warn('RouteGuard: Loading timeout, redirecting to login');
         setLoadingTimeout(true);
         if (pathname !== '/login') {
+          // Clear token if exists (might be expired)
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+          }
           router.push('/login');
         }
       }, 5000); // 5 second timeout
@@ -91,8 +94,9 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <div className="text-white">Loading...</div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-700 border-t-blue-600 mb-4"></div>
+          <div className="text-white text-lg font-medium">Loading...</div>
+          <div className="text-gray-400 text-sm mt-2">Please wait</div>
         </div>
       </div>
     );

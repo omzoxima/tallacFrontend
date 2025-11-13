@@ -3,6 +3,8 @@ import './globals.css'
 import { CallProvider } from '@/contexts/CallContext'
 import { UserProvider } from '@/contexts/UserContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import ToastContainer from '@/components/Toast'
+import PageLoader from '@/components/PageLoader'
 
 export const metadata: Metadata = {
   title: 'Tallac CRM',
@@ -19,7 +21,11 @@ export default function RootLayout({
       <body>
         <UserProvider>
           <CallProvider>
-            <RouteGuard>{children}</RouteGuard>
+            <RouteGuard>
+              <PageLoader />
+              {children}
+              <ToastContainer />
+            </RouteGuard>
           </CallProvider>
         </UserProvider>
       </body>

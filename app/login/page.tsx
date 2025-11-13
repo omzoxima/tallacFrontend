@@ -8,7 +8,7 @@ import { Mail, Lock, LogIn } from 'lucide-react';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, refresh } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -60,7 +60,8 @@ function LoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Invalid credentials');
+        const errorMessage = data.error || 'Invalid credentials';
+        setError(errorMessage);
         setLoading(false);
         return;
       }
@@ -68,15 +69,21 @@ function LoginForm() {
       // Store token
       localStorage.setItem('token', data.token);
       
+      // Refresh user context to update user state immediately
+      await refresh();
+      
       // Determine redirect path based on password change requirement
       const redirectPath = data.user && data.user.password_change_required === true
         ? '/change-password'
         : '/';
       
-      // Use router.push for cleaner navigation
-      router.push(redirectPath);
+      // Small delay to ensure context is updated, then redirect
+      setTimeout(() => {
+        window.location.href = redirectPath;
+      }, 100);
     } catch (error: any) {
-      setError(error.message || 'An error occurred. Please try again.');
+      const errorMessage = error.message || 'An error occurred. Please try again.';
+      setError(errorMessage);
       console.error('Login error:', error);
       setLoading(false);
     }

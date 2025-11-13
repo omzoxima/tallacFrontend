@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppHeader from '@/components/AppHeader';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useUser } from '@/contexts/UserContext';
+import { showToast } from '@/components/Toast';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -88,6 +89,7 @@ export default function Dashboard() {
       
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
+          showToast('Session expired. Please login again.', 'error');
           localStorage.removeItem('token');
           router.push('/login');
           return;
@@ -121,6 +123,7 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      showToast('Failed to load dashboard data. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -166,7 +169,7 @@ export default function Dashboard() {
     return (
       <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
           <div className="max-w-7xl mx-auto w-full flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
@@ -183,7 +186,7 @@ export default function Dashboard() {
     <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
       <AppHeader />
       
-      <main className="flex-1 overflow-y-auto p-4 md:p-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
         <div className="max-w-7xl mx-auto w-full">
           
           {/* 1. Overview KPIs */}

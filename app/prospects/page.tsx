@@ -8,6 +8,7 @@ import ProspectDetails from '@/components/ProspectDetails';
 import TallacActivityModal from '@/components/TallacActivityModal';
 import Tooltip from '@/components/Tooltip';
 import { Phone, Plus, FileText, X } from 'lucide-react';
+import { showToast } from '@/components/Toast';
 
 interface Prospect {
   id: string;
@@ -62,6 +63,7 @@ function ProspectsPageContent() {
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [showProspectDetails, setShowProspectDetails] = useState(false);
   const [locations, setLocations] = useState<any[]>([]);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   useEffect(() => {
     loadProspects();
@@ -70,6 +72,17 @@ function ProspectsPageContent() {
   useEffect(() => {
     loadLocations();
   }, []);
+
+  // Close mobile search on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showMobileSearch) {
+        setShowMobileSearch(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showMobileSearch]);
 
   useEffect(() => {
     const openProspect = searchParams?.get('openProspect');
@@ -87,14 +100,27 @@ function ProspectsPageContent() {
       setLoading(true);
       // Load ALL prospects (like Vue.js does) - filtering happens client-side
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/leads?limit=1000`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/leads?limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          showToast('Session expired. Please login again.', 'error');
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return;
+        }
         throw new Error(`API error: ${response.status}`);
       }
       const data = await response.json();
       setProspects(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading prospects:', error);
+      showToast('Failed to load prospects. Please try again.', 'error');
       setProspects([]);
     } finally {
       setLoading(false);
@@ -464,12 +490,12 @@ function ProspectsPageContent() {
         
         if (response.ok) {
           const result = await response.json();
-          console.log(`Assigned ${result.count} prospects to ${repName}`);
+          showToast(`Successfully assigned ${result.count} prospect(s) to ${repName}`, 'success');
           // Reload prospects to reflect changes
           loadProspects();
           exitBulkSelectMode();
         } else {
-          alert('Failed to assign prospects');
+          showToast('Failed to assign prospects', 'error');
         }
       } else {
         // Single assign
@@ -487,16 +513,16 @@ function ProspectsPageContent() {
           );
           
           if (response.ok) {
-            console.log(`Assigned ${currentProspect?.company_name} to ${repName}`);
+            showToast(`Assigned ${currentProspect?.company_name} to ${repName}`, 'success');
             loadProspects();
           } else {
-            alert('Failed to assign prospect');
+            showToast('Failed to assign prospect', 'error');
           }
         }
       }
     } catch (error) {
       console.error('Error assigning:', error);
-      alert('Error assigning prospect(s)');
+      showToast('Error assigning prospect(s)', 'error');
     }
 
     closeAssignModal();
@@ -521,24 +547,24 @@ function ProspectsPageContent() {
       
       if (response.ok) {
         const result = await response.json();
-        console.log(`Updated ${result.count} prospects to ${newStatus}`);
+        showToast(`Updated ${result.count} prospect(s) to ${newStatus}`, 'success');
         // Reload prospects to reflect changes
         loadProspects();
         setShowStatusModal(false);
         exitBulkSelectMode();
       } else {
-        alert('Failed to update status');
+        showToast('Failed to update status', 'error');
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Error updating status');
+      showToast('Error updating status', 'error');
     }
   };
 
   const bulkDelete = async () => {
     if (selectedProspects.size === 0) return;
     
-    if (confirm(`Are you sure you want to delete ${selectedProspects.size} prospect(s)?`)) {
+    if (window.confirm(`Are you sure you want to delete ${selectedProspects.size} prospect(s)?`)) {
       try {
         const leadNames = Array.from(selectedProspects);
         const response = await fetch(
@@ -554,16 +580,16 @@ function ProspectsPageContent() {
         
         if (response.ok) {
           const result = await response.json();
-          console.log(`Deleted ${result.count} prospects`);
+          showToast(`Successfully deleted ${result.count} prospect(s)`, 'success');
           // Reload prospects to reflect changes
           loadProspects();
           exitBulkSelectMode();
         } else {
-          alert('Failed to delete prospects');
+          showToast('Failed to delete prospects', 'error');
         }
       } catch (error) {
         console.error('Error deleting prospects:', error);
-        alert('Error deleting prospects');
+        showToast('Error deleting prospects', 'error');
       }
     }
   };
@@ -571,10 +597,11 @@ function ProspectsPageContent() {
   const refreshData = () => {
     setLoading(true);
     loadProspects();
+    showToast('Refreshing prospects...', 'info', 2000);
   };
 
   const createNewProspect = () => {
-    alert('Create New Prospect - This will be connected to server later');
+    showToast('Create New Prospect feature coming soon!', 'info');
   };
 
   const hasActiveFilters = territoryFilter || industryFilter || ownerFilter;
@@ -611,7 +638,7 @@ function ProspectsPageContent() {
     <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
       <AppHeader />
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
         <div className="max-w-7xl mx-auto w-full">
           {/* Active Filter Chips Bar (when filters are applied) */}
           {hasActiveFilters && !isBulkSelectMode && (
@@ -722,124 +749,289 @@ function ProspectsPageContent() {
             </div>
           )}
 
-          {/* 1. Creative Pipeline Filter */}
-          <div className="flex flex-wrap items-center gap-3 mb-6">
-            {/* Queue Filter Button */}
-            <button
-              onClick={() => setActiveFilter('queue')}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-red-700 focus:outline-none transition-colors ${
-                activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              Queue
-              <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
-                activeFilter === 'queue' ? 'bg-red-700' : 'bg-red-600'
-              }`}>
-                {Array.isArray(prospects)
-                  ? prospects.filter((p) => p.queue_status === 'overdue' || p.queue_status === 'today').length
-                  : 0}
-              </span>
-            </button>
+          {/* 1. Creative Pipeline Filter - Mobile Optimized */}
+          <div className="mb-4 md:mb-6">
+            {/* Mobile: Compact filter bar */}
+            <div className="md:hidden space-y-3">
+              {/* Pipeline Status Buttons - Horizontal Scroll on Mobile */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                <button
+                  onClick={() => setActiveFilter('queue')}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
+                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
+                  }`}
+                >
+                  Queue
+                  <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
+                    activeFilter === 'queue' ? 'bg-red-700' : 'bg-red-600'
+                  }`}>
+                    {Array.isArray(prospects)
+                      ? prospects.filter((p) => p.queue_status === 'overdue' || p.queue_status === 'today').length
+                      : 0}
+                  </span>
+                </button>
 
-            {/* Scheduled Filter Button */}
-            <button
-              onClick={() => setActiveFilter('scheduled')}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
-                activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              Scheduled
-              <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
-                activeFilter === 'scheduled' ? 'bg-blue-700' : 'bg-blue-600'
-              }`}>
-                {Array.isArray(prospects)
-                  ? prospects.filter((p) => p.queue_status === 'scheduled').length
-                  : 0}
-              </span>
-            </button>
+                <button
+                  onClick={() => setActiveFilter('scheduled')}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
+                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                  }`}
+                >
+                  Scheduled
+                  <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
+                    activeFilter === 'scheduled' ? 'bg-blue-700' : 'bg-blue-600'
+                  }`}>
+                    {Array.isArray(prospects)
+                      ? prospects.filter((p) => p.queue_status === 'scheduled').length
+                      : 0}
+                  </span>
+                </button>
 
-            {/* Proportional Pipeline Bar */}
-            <div className="flex flex-1 min-w-[400px] h-10 bg-gray-700/50 rounded-lg overflow-hidden">
-              {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
-                const count = statusCounts[status as keyof typeof statusCounts] || 0;
-                const statusColors: Record<string, string> = {
-                  new: 'bg-blue-600',
-                  contacted: 'bg-purple-600',
-                  interested: 'bg-yellow-600',
-                  proposal: 'bg-orange-600',
-                  won: 'bg-green-600',
-                  lost: 'bg-red-700',
-                };
-                const badgeColor = statusColors[status] || 'bg-blue-600';
-                return (
-                  <button
-                    key={status}
-                    onClick={() => setActiveFilter(status)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-sm font-semibold text-white transition-all duration-200 focus:outline-none ${
-                      activeFilter === status ? badgeColor : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
-                  >
-                    <span className="capitalize">{status}</span>
-                    <span className={`${badgeColor} text-white text-xs font-bold px-1.5 py-0.5 rounded`}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* All Filter Button */}
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
-                activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              All
-              <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
-                activeFilter === 'all' ? 'bg-blue-700' : 'bg-blue-600'
-              }`}>
-                {Array.isArray(prospects) ? prospects.length : 0}
-              </span>
-            </button>
-          </div>
-
-          {/* 2c. Main Filter & Action Bar */}
-          {!isBulkSelectMode && (
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
-              {/* Left: Filters */}
-              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <div className="relative w-full sm:w-56">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
-                  </div>
-                  <input
-                    type="search"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
-                  />
-                </div>
-                <Tooltip text="Open advanced filters">
-                  <button
-                    onClick={() => setShowFilterModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013l-2.5 1a2.25 2.25 0 01-2.316-2.013v-2.927a2.25 2.25 0 00-.659-1.591L2.659 7.409A2.25 2.25 0 012 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-                    </svg>
-                    <span className="hidden sm:inline">Filters</span>
-                  </button>
-                </Tooltip>
+                <button
+                  onClick={() => setActiveFilter('all')}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
+                    activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                  }`}
+                >
+                  All
+                  <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
+                    activeFilter === 'all' ? 'bg-blue-700' : 'bg-blue-600'
+                  }`}>
+                    {Array.isArray(prospects) ? prospects.length : 0}
+                  </span>
+                </button>
               </div>
 
-              {/* Right: Actions & Display Controls */}
-              <div className="flex items-center justify-center md:justify-end flex-wrap gap-3 w-full md:w-auto overflow-x-auto">
+              {/* Pipeline Status Bar - Compact on Mobile */}
+              <div className="flex h-8 bg-gray-700/50 rounded-lg overflow-hidden">
+                {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
+                  const count = statusCounts[status as keyof typeof statusCounts] || 0;
+                  const statusColors: Record<string, string> = {
+                    new: 'bg-blue-600',
+                    contacted: 'bg-purple-600',
+                    interested: 'bg-yellow-600',
+                    proposal: 'bg-orange-600',
+                    won: 'bg-green-600',
+                    lost: 'bg-red-700',
+                  };
+                  const badgeColor = statusColors[status] || 'bg-blue-600';
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => setActiveFilter(status)}
+                      className={`flex-1 flex items-center justify-center gap-1 px-1 py-1 text-xs font-semibold text-white transition-all ${
+                        activeFilter === status ? badgeColor : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                      title={`${status.charAt(0).toUpperCase() + status.slice(1)}: ${count}`}
+                    >
+                      <span className="hidden sm:inline capitalize">{status}</span>
+                      <span className="sm:hidden">{status.charAt(0).toUpperCase()}</span>
+                      <span className={`${badgeColor} text-white text-xs font-bold px-1 py-0.5 rounded`}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Desktop: Original Layout */}
+            <div className="hidden md:flex flex-wrap items-center gap-3">
+              {/* Queue Filter Button */}
+              <button
+                onClick={() => setActiveFilter('queue')}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-red-700 focus:outline-none transition-colors ${
+                  activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                Queue
+                <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
+                  activeFilter === 'queue' ? 'bg-red-700' : 'bg-red-600'
+                }`}>
+                  {Array.isArray(prospects)
+                    ? prospects.filter((p) => p.queue_status === 'overdue' || p.queue_status === 'today').length
+                    : 0}
+                </span>
+              </button>
+
+              {/* Scheduled Filter Button */}
+              <button
+                onClick={() => setActiveFilter('scheduled')}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
+                  activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                Scheduled
+                <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
+                  activeFilter === 'scheduled' ? 'bg-blue-700' : 'bg-blue-600'
+                }`}>
+                  {Array.isArray(prospects)
+                    ? prospects.filter((p) => p.queue_status === 'scheduled').length
+                    : 0}
+                </span>
+              </button>
+
+              {/* Proportional Pipeline Bar */}
+              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 bg-gray-700/50 rounded-lg overflow-hidden">
+                {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
+                  const count = statusCounts[status as keyof typeof statusCounts] || 0;
+                  const statusColors: Record<string, string> = {
+                    new: 'bg-blue-600',
+                    contacted: 'bg-purple-600',
+                    interested: 'bg-yellow-600',
+                    proposal: 'bg-orange-600',
+                    won: 'bg-green-600',
+                    lost: 'bg-red-700',
+                  };
+                  const badgeColor = statusColors[status] || 'bg-blue-600';
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => setActiveFilter(status)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-sm font-semibold text-white transition-all duration-200 focus:outline-none ${
+                        activeFilter === status ? badgeColor : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      <span className="capitalize">{status}</span>
+                      <span className={`${badgeColor} text-white text-xs font-bold px-1.5 py-0.5 rounded`}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* All Filter Button */}
+              <button
+                onClick={() => setActiveFilter('all')}
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
+                  activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                All
+                <span className={`text-white text-xs font-bold px-2 py-0.5 rounded-full ${
+                  activeFilter === 'all' ? 'bg-blue-700' : 'bg-blue-600'
+                }`}>
+                  {Array.isArray(prospects) ? prospects.length : 0}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2c. Main Filter & Action Bar - Mobile Optimized */}
+          {!isBulkSelectMode && (
+            <div className="mb-6">
+              {/* Mobile: Search and Filter Bar */}
+              <div className="md:hidden space-y-3 mb-4">
+                {/* Mobile Search - Icon Button (when hidden) or Input (when shown) */}
+                {!showMobileSearch ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowMobileSearch(true)}
+                      className="flex items-center justify-center p-3 bg-gray-700 border border-gray-600 text-gray-300 rounded-xl hover:bg-gray-600 active:bg-gray-500 transition-colors"
+                      aria-label="Search prospects"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="search"
+                      placeholder="Search prospects..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-gray-700 border border-gray-600 text-gray-200 text-base rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full py-3 pl-11 pr-10 placeholder-gray-400"
+                      aria-label="Search prospects"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => setShowMobileSearch(false)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-300"
+                      aria-label="Close search"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Action Buttons Row - Mobile */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowFilterModal(true)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 border border-gray-600 text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-600 active:bg-gray-500 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013l-2.5 1a2.25 2.25 0 01-2.316-2.013v-2.927a2.25 2.25 0 00-.659-1.591L2.659 7.409A2.25 2.25 0 012 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                    </svg>
+                    <span>Filters</span>
+                  </button>
+                  
+                  <button
+                    onClick={createNewProspect}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white font-medium rounded-xl text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-lg"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    <span>New</span>
+                  </button>
+
+                  <button
+                    onClick={enterBulkSelectMode}
+                    className="flex items-center justify-center p-3 bg-gray-700 border border-gray-600 text-gray-300 rounded-xl hover:bg-gray-600 active:bg-gray-500 transition-colors"
+                    aria-label="Select prospects"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Desktop: Original Layout */}
+              <div className="hidden md:flex flex-row justify-between items-center gap-3">
+                {/* Left: Filters */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative w-56">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                    </div>
+                    <input
+                      type="search"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
+                      aria-label="Search prospects"
+                    />
+                  </div>
+                  <Tooltip text="Open advanced filters">
+                    <button
+                      onClick={() => setShowFilterModal(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700"
+                      aria-label="Open advanced filters"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013l-2.5 1a2.25 2.25 0 01-2.316-2.013v-2.927a2.25 2.25 0 00-.659-1.591L2.659 7.409A2.25 2.25 0 012 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+                      </svg>
+                      <span>Filters</span>
+                    </button>
+                  </Tooltip>
+                </div>
+
+                {/* Right: Actions & Display Controls - Desktop Only */}
+                <div className="flex items-center justify-end flex-wrap gap-3">
                 <Tooltip text="Select prospects">
                   <button
                     onClick={enterBulkSelectMode}
-                    className="flex items-center justify-center p-2.5 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700"
+                    className="flex items-center justify-center p-2.5 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700 min-h-[44px] min-w-[44px] touch-manipulation"
+                    aria-label="Select prospects"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -849,12 +1041,13 @@ function ProspectsPageContent() {
                 <Tooltip text="Create new prospect">
                   <button
                     onClick={createNewProspect}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg text-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 whitespace-nowrap"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg text-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 whitespace-nowrap touch-manipulation"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
-                    New Prospect
+                    <span className="hidden sm:inline">New Prospect</span>
+                    <span className="sm:hidden">New</span>
                   </button>
                 </Tooltip>
 
@@ -954,6 +1147,7 @@ function ProspectsPageContent() {
                       )}
                     </button>
                   </Tooltip>
+                </div>
                 </div>
               </div>
             </div>
@@ -1087,7 +1281,7 @@ function ProspectsPageContent() {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-green-600/20 text-gray-300 hover:text-green-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-green-600/30"
+                              className="group relative flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 bg-transparent hover:bg-green-600/20 text-gray-300 hover:text-green-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-green-600/30 touch-manipulation min-h-[44px]"
                             >
                               <Phone className="w-4 h-4" />
                               <span className="hidden sm:inline">Call</span>
@@ -1099,7 +1293,7 @@ function ProspectsPageContent() {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-blue-600/20 text-gray-300 hover:text-blue-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-blue-600/30"
+                              className="group relative flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 bg-transparent hover:bg-blue-600/20 text-gray-300 hover:text-blue-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-blue-600/30 touch-manipulation min-h-[44px]"
                             >
                               <Plus className="w-4 h-4" />
                               <span className="hidden sm:inline">Task</span>
@@ -1111,7 +1305,7 @@ function ProspectsPageContent() {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-purple-600/20 text-gray-300 hover:text-purple-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-purple-600/30"
+                              className="group relative flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 bg-transparent hover:bg-purple-600/20 text-gray-300 hover:text-purple-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-purple-600/30 touch-manipulation min-h-[44px]"
                             >
                               <FileText className="w-4 h-4" />
                               <span className="hidden sm:inline">Log</span>
@@ -1189,11 +1383,11 @@ function ProspectsPageContent() {
       {/* Assignment Modal */}
       {showAssignModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={closeAssignModal}
         >
           <div
-            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl"
+            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-4 border-b border-gray-700">
@@ -1254,11 +1448,11 @@ function ProspectsPageContent() {
       {/* Filter Modal */}
       {showFilterModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setShowFilterModal(false)}
         >
           <div
-            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl"
+            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-4 border-b border-gray-700">
@@ -1339,11 +1533,11 @@ function ProspectsPageContent() {
       {/* Bulk Status Change Modal */}
       {showStatusModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setShowStatusModal(false)}
         >
           <div
-            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl"
+            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-4 border-b border-gray-700">
@@ -1389,7 +1583,7 @@ export default function ProspectsPage() {
     <Suspense fallback={
       <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
           <div className="max-w-7xl mx-auto w-full">
             <div className="flex flex-col items-center justify-center py-20">
               <div className="spinner w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mb-4"></div>

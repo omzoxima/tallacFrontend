@@ -171,7 +171,6 @@ export default function TeamPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <p className="text-gray-400 text-sm mb-2">Manage your team members and their roles</p>
           </div>
           <div className="flex items-center gap-3">
             <ViewToggle view={view} onViewChange={setView} />

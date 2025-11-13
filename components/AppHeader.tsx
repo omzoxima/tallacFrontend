@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Menu, X } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import { getVisibleNavItems } from '@/utils/permissions';
 
 export default function AppHeader() {
   const pathname = usePathname();
-  const router = useRouter();
   const [isDark, setIsDark] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useUser();
   const visibleNavItems = getVisibleNavItems(user?.role);
   
@@ -47,7 +47,7 @@ export default function AppHeader() {
       // Use window.location.href for immediate, clean redirect (clears React state)
       // This prevents any flickering or double renders
       window.location.href = '/login';
-    } catch (error) {
+    } catch {
       // Even if there's an error, clear everything and redirect
       logout();
       window.location.href = '/login';
@@ -78,26 +78,49 @@ export default function AppHeader() {
     }
   };
 
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
     <header className={`sticky top-0 z-50 border-b ${
       isDark 
         ? 'bg-gray-800 border-gray-700' 
         : 'bg-white border-gray-200'
     }`}>
-      <div className="max-w-[1400px] mx-auto px-6">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Navigation - Left Side */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 sm:gap-8">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`md:hidden p-2 rounded-md transition-colors ${
+                isDark
+                  ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
+            </button>
+
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <h1 className={`text-xl font-bold tracking-tight ${
+              <h1 className={`text-lg sm:text-xl font-bold tracking-tight ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}>
                 TALLAC.IO
               </h1>
             </Link>
 
-            {/* Navigation - Left Aligned */}
+            {/* Navigation - Desktop Only */}
             <nav className="hidden md:flex items-center gap-2">
               {visibleNavItems.map((item) => (
                 <Link
@@ -168,6 +191,33 @@ export default function AppHeader() {
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className={`md:hidden border-t ${
+            isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+          }`}>
+            <nav className="px-4 py-3 space-y-1">
+              {visibleNavItems.map((item) => (
+                <Link
+                  key={item.route}
+                  href={item.route}
+                  className={`block px-4 py-3 rounded-md text-base font-medium transition-all ${
+                    pathname === item.route
+                      ? isDark
+                        ? 'bg-blue-600/20 text-blue-400'
+                        : 'bg-blue-50 text-blue-600'
+                      : isDark
+                      ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -248,7 +248,6 @@ export default function LocationPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <p className="text-gray-400 text-sm mb-2">Manage territories and their assignments</p>
           </div>
           <div className="flex items-center gap-3">
             <ViewToggle view={view} onViewChange={setView} />

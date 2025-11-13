@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import AppHeader from '@/components/AppHeader';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import ProspectDetails from '@/components/ProspectDetails';
@@ -44,7 +43,6 @@ interface Prospect {
 }
 
 export default function ActivitiesPage() {
-  const router = useRouter();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,7 +230,7 @@ export default function ActivitiesPage() {
     <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
       <AppHeader />
       
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
         <div className="max-w-7xl mx-auto w-full">
           
           {/* Activity Type Filter */}
