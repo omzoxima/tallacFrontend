@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppHeader from '@/components/AppHeader';
 import MobileBottomNav from '@/components/MobileBottomNav';
@@ -47,30 +47,7 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Wait for user context to finish loading (with timeout)
-    if (userLoading) {
-      // Set a timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
-        // If loading takes too long, redirect to login
-        console.warn('User context loading timeout, redirecting to login');
-        router.push('/login');
-      }, 5000); // 5 second timeout
-      
-      return () => clearTimeout(timeoutId);
-    }
-    
-    // If no user after loading, redirect to login
-    if (!user || !user.id) {
-      router.push('/login');
-      return;
-    }
-    
-    // User is authenticated, load dashboard data
-    loadDashboardData();
-  }, [user, userLoading, router]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const token = localStorage.getItem('token');
@@ -80,54 +57,113 @@ export default function Dashboard() {
         return;
       }
 
-      const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      try {
+        const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            showToast('Session expired. Please login again.', 'error');
+            localStorage.removeItem('token');
+            router.push('/login');
+            return;
+          }
+          throw new Error('Failed to load dashboard data');
         }
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          showToast('Session expired. Please login again.', 'error');
-          localStorage.removeItem('token');
-          router.push('/login');
-          return;
+        
+        const data = await response.json();
+        
+        setKpis((prev) => data.kpis || prev);
+        setPipeline((prev) => data.pipeline || prev);
+        setActivityBreakdown((prev) => data.activityBreakdown || prev);
+        
+        setPerformance({
+          callsMade: 127,
+          callsChange: 12,
+          emailsSent: 64,
+          emailsChange: 8,
+          appointments: 9,
+          appointmentsChange: 15,
+          dealsClosed: 3,
+          dealsChange: 20,
+        });
+        
+        setWeeklyPerformance({
+          newProspects: 34,
+          totalActivities: 312,
+          responseRate: 68,
+          revenue: 125000,
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.warn('Dashboard data loading timeout (6s)');
+          showToast('Dashboard loading timeout. Please refresh the page.', 'error');
+        } else {
+          throw fetchError;
         }
-        throw new Error('Failed to load dashboard data');
       }
-      
-      const data = await response.json();
-      
-      setKpis(data.kpis || kpis);
-      setPipeline(data.pipeline || pipeline);
-      setActivityBreakdown(data.activityBreakdown || activityBreakdown);
-      
-      // Set dummy performance data for now
-      setPerformance({
-        callsMade: 127,
-        callsChange: 12,
-        emailsSent: 64,
-        emailsChange: 8,
-        appointments: 9,
-        appointmentsChange: 15,
-        dealsClosed: 3,
-        dealsChange: 20,
-      });
-      
-      setWeeklyPerformance({
-        newProspects: 34,
-        totalActivities: 312,
-        responseRate: 68,
-        revenue: 125000,
-      });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       showToast('Failed to load dashboard data. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            localStorage.removeItem('token');
+            router.push('/login');
+            return;
+          }
+        }
+      } catch (e) {
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+    }
+    
+    if (userLoading) {
+      const timeoutId = setTimeout(() => {
+        console.warn('User context loading timeout (6s), redirecting to login');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+        }
+        router.push('/login');
+      }, 6000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+    
+    if (!user || !user.id) {
+      router.push('/login');
+      return;
+    }
+    
+    loadDashboardData();
+  }, [user, userLoading, router, loadDashboardData]);
 
   const pipelineTotal = Object.values(pipeline).reduce((sum, val) => sum + (val || 0), 0);
   
@@ -147,13 +183,21 @@ export default function Dashboard() {
     router.push(path);
   };
 
-  // Show loading while checking user (RouteGuard will handle this, but just in case)
+  useEffect(() => {
+    if (loading) {
+      const timeoutId = setTimeout(() => {
+        setLoading(false);
+      }, 6000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [loading]);
+
   if (userLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+      <div className="flex items-center justify-center min-h-screen bg-gray-900 dark:bg-gray-900 bg-gray-50">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <div className="text-white">Loading...</div>
+          <div className="text-gray-900 dark:text-white">Loading...</div>
         </div>
       </div>
     );
@@ -164,16 +208,15 @@ export default function Dashboard() {
     return null;
   }
 
-  // Show loading while loading dashboard data (but show header)
   if (loading) {
     return (
-      <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
+      <div className="app-layout bg-gray-900 dark:bg-gray-900 bg-gray-50 text-gray-300 dark:text-gray-300 text-gray-900 flex flex-col min-h-screen">
         <AppHeader />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
           <div className="max-w-7xl mx-auto w-full flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-              <div className="text-white">Loading dashboard...</div>
+              <div className="text-gray-900 dark:text-white">Loading dashboard...</div>
             </div>
           </div>
         </main>
@@ -183,7 +226,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
+    <div className="app-layout bg-gray-900 dark:bg-gray-900 bg-gray-50 text-gray-300 dark:text-gray-300 text-gray-900 flex flex-col min-h-screen transition-colors duration-300">
       <AppHeader />
       
       <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
@@ -191,19 +234,19 @@ export default function Dashboard() {
           
           {/* 1. Overview KPIs */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Business Overview</h2>
+            <h2 className="text-xl font-semibold text-white dark:text-white text-gray-900 mb-4">Business Overview</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Total Prospects */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-blue-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-blue-500 transition-colors shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Total Prospects</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Total Prospects</span>
                   <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <div className="text-3xl font-bold text-white">{kpis.totalProspects || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Active in pipeline</div>
+                <div className="text-3xl font-bold text-white dark:text-white text-gray-900">{kpis.totalProspects || 0}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">Active in pipeline</div>
               </div>
 
               {/* Total Activities */}
@@ -246,15 +289,15 @@ export default function Dashboard() {
 
           {/* 2. Pipeline Overview */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Pipeline Overview</h2>
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-xl font-semibold text-white dark:text-white text-gray-900 mb-4">Pipeline Overview</h2>
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200 shadow-sm">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
                 {/* New */}
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-2">New</div>
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">New</div>
                   <div className="text-2xl font-bold text-blue-400">{pipeline.new || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{pipelinePercentage('new')}%</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('new')}%</div>
                 </div>
 
                 {/* Contacted */}

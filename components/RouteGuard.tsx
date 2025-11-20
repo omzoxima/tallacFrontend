@@ -11,11 +11,11 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  // Set timeout for loading to prevent infinite loading (5 seconds)
+  // Set timeout for loading to prevent infinite loading (6 seconds)
   useEffect(() => {
     if (loading) {
       const timeoutId = setTimeout(() => {
-        // If loading takes too long (5 seconds), assume user is not authenticated
+        // If loading takes too long (6 seconds), assume user is not authenticated
         setLoadingTimeout(true);
         if (pathname !== '/login') {
           // Clear token if exists (might be expired)
@@ -24,7 +24,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
           }
           router.push('/login');
         }
-      }, 5000); // 5 second timeout
+      }, 6000); // 6 second timeout
       
       return () => clearTimeout(timeoutId);
     } else {

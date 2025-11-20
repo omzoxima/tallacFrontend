@@ -63,6 +63,10 @@ export default function ActivitiesPage() {
         setCompanyFilter(company);
         setSearchQuery(company); // Pre-fill search with company name
       }
+      const territoryParam = params.get('territory');
+      if (territoryParam) {
+        setSearchQuery(territoryParam);
+      }
     }
     loadActivities();
   }, [activeFilter]);
@@ -336,8 +340,8 @@ export default function ActivitiesPage() {
                 <div
                   key={activity.id || activity.name}
                   onClick={() => handleActivityCardClick(activity)}
-                  className={`bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 border-transparent hover:border-blue-500 cursor-pointer ${
-                    selectedActivity?.id === activity.id && showProspectDetails ? 'ring-2 ring-indigo-500' : ''
+                  className={`bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 border-gray-700 hover:border-blue-500 cursor-pointer ${
+                    selectedActivity?.id === activity.id && showProspectDetails ? 'ring-2 ring-green-500 border-green-500' : ''
                   }`}
                 >
                   {/* Card Header */}
@@ -455,8 +459,8 @@ export default function ActivitiesPage() {
                   <div
                     key={activity.id || activity.name}
                     onClick={() => handleActivityCardClick(activity)}
-                    className={`bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 border-transparent hover:border-blue-500 cursor-pointer ${
-                      selectedActivity?.id === activity.id && showProspectDetails ? 'ring-2 ring-indigo-500' : ''
+                    className={`bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 border-gray-700 hover:border-blue-500 cursor-pointer ${
+                      selectedActivity?.id === activity.id && showProspectDetails ? 'ring-2 ring-green-500 border-green-500' : ''
                     }`}
                   >
                     {/* Card Header */}

@@ -18,6 +18,7 @@ export const ROLE_PERMISSIONS: Record<Role, Record<string, boolean>> = {
     canViewReports: true,
     canViewUsers: true,
     canViewTerritories: true,
+    canViewPartners: true,
     canManageUsers: true,
     canManageTerritories: true,
     canAssignLeads: true,
@@ -33,6 +34,7 @@ export const ROLE_PERMISSIONS: Record<Role, Record<string, boolean>> = {
     canViewReports: true,
     canViewUsers: true,
     canViewTerritories: true,
+    canViewPartners: true,
     canManageUsers: false,
     canManageTerritories: false,
     canAssignLeads: false,
@@ -48,6 +50,7 @@ export const ROLE_PERMISSIONS: Record<Role, Record<string, boolean>> = {
     canViewReports: true,
     canViewUsers: true,
     canViewTerritories: true,
+    canViewPartners: true,
     canManageUsers: true,
     canManageTerritories: false,
     canAssignLeads: true,
@@ -63,6 +66,7 @@ export const ROLE_PERMISSIONS: Record<Role, Record<string, boolean>> = {
     canViewReports: true,
     canViewUsers: true,
     canViewTerritories: true,
+    canViewPartners: false,
     canManageUsers: false,
     canManageTerritories: false,
     canAssignLeads: true,
@@ -78,6 +82,7 @@ export const ROLE_PERMISSIONS: Record<Role, Record<string, boolean>> = {
     canViewReports: false,
     canViewUsers: false,
     canViewTerritories: false,
+    canViewPartners: false,
     canManageUsers: false,
     canManageTerritories: false,
     canAssignLeads: false,
@@ -133,24 +138,26 @@ export function getVisibleNavItems(userRole: Role | string | null | undefined) {
     items.push({ name: 'Activities', route: '/activities', icon: 'activities' });
   }
   
-  // Team tab - visible to users who can view users
-  const canViewUsers = canAccess(userRole, 'canViewUsers');
-  console.log('getVisibleNavItems - canViewUsers:', canViewUsers);
-  if (canViewUsers) {
-    items.push({ name: 'Team', route: '/team', icon: 'team' });
-  }
-  
-  // Location tab - visible to users who can view territories
+  // Territories tab - visible to users who can view territories
   const canViewTerritories = canAccess(userRole, 'canViewTerritories');
   console.log('getVisibleNavItems - canViewTerritories:', canViewTerritories);
   if (canViewTerritories) {
-    items.push({ name: 'Location', route: '/location', icon: 'location' });
+    items.push({ name: 'Territories', route: '/territories', icon: 'location' });
   }
   
-  // Company tab - visible to users who can view prospects
-  if (canAccess(userRole, 'canViewProspects')) {
-    items.push({ name: 'Company', route: '/company', icon: 'company' });
+  // Partners tab - visible to users who can view partners
+  if (canAccess(userRole, 'canViewPartners')) {
+    items.push({ name: 'Partners', route: '/partners', icon: 'company' });
   }
+  
+  // Users tab - visible to users who can view users
+  const canViewUsers = canAccess(userRole, 'canViewUsers');
+  console.log('getVisibleNavItems - canViewUsers:', canViewUsers);
+  if (canViewUsers) {
+    items.push({ name: 'Users', route: '/users', icon: 'team' });
+  }
+  
+  // Removed legacy routes: Team, Location, Company
   
   // Knowledge Base tab - visible to ALL users (all roles)
   items.push({ name: 'Knowledge Base', route: '/knowledge-base', icon: 'knowledge-base' });

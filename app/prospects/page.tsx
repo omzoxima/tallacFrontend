@@ -6,6 +6,7 @@ import AppHeader from '@/components/AppHeader';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import ProspectDetails from '@/components/ProspectDetails';
 import TallacActivityModal from '@/components/TallacActivityModal';
+import AddProspectModal from '@/components/AddProspectModal';
 import Tooltip from '@/components/Tooltip';
 import { Phone, Plus, FileText, X } from 'lucide-react';
 import { showToast } from '@/components/Toast';
@@ -95,6 +96,14 @@ function ProspectsPageContent() {
     }
   }, [searchParams, prospects]);
 
+  useEffect(() => {
+    const territoryParam = searchParams?.get('territory');
+    if (territoryParam) {
+      setTerritoryFilter(territoryParam);
+      setShowFilterModal(false);
+    }
+  }, [searchParams]);
+
   const loadProspects = async () => {
     try {
       setLoading(true);
@@ -141,14 +150,14 @@ function ProspectsPageContent() {
 
   const getStatusBadgeClass = (status: string) => {
     const statusMap: Record<string, string> = {
-      proposal: 'bg-orange-600/20 text-orange-300',
-      contacted: 'bg-blue-600/20 text-blue-300',
-      interested: 'bg-yellow-600/20 text-yellow-300',
-      lost: 'bg-red-600/20 text-red-300',
-      won: 'bg-green-600/20 text-green-300',
-      new: 'bg-blue-600/20 text-blue-300',
+      proposal: 'bg-orange-600/20 dark:text-orange-300 text-orange-700',
+      contacted: 'bg-blue-600/20 dark:text-blue-300 text-blue-700',
+      interested: 'bg-yellow-600/20 dark:text-yellow-300 text-yellow-700',
+      lost: 'bg-red-600/20 dark:text-red-300 text-red-700',
+      won: 'bg-green-600/20 dark:text-green-300 text-green-700',
+      new: 'bg-blue-600/20 dark:text-blue-300 text-blue-700',
     };
-    return statusMap[status?.toLowerCase()] || 'bg-gray-600/20 text-gray-300';
+    return statusMap[status?.toLowerCase()] || 'bg-gray-600/20 dark:text-gray-300 text-gray-700';
   };
 
   const getStatusLabel = (status: string) => {
@@ -186,11 +195,11 @@ function ProspectsPageContent() {
 
   const getQueueStatusClass = (queueStatus?: string) => {
     const statusMap: Record<string, string> = {
-      overdue: 'text-red-400',
-      today: 'text-orange-400',
-      scheduled: 'text-indigo-300',
+      overdue: 'text-red-600 dark:text-red-400',
+      today: 'text-orange-600 dark:text-orange-400',
+      scheduled: 'text-indigo-600 dark:text-indigo-300',
     };
-    return statusMap[queueStatus || ''] || 'text-gray-400';
+    return statusMap[queueStatus || ''] || 'dark:text-gray-400 text-gray-600';
   };
 
   const getContactPathClass = (status: string) => {
@@ -444,6 +453,7 @@ function ProspectsPageContent() {
 
   const saveActivity = (activity: any) => {
     console.log('Saving activity:', activity);
+    loadProspects(); // Reload prospects to reflect new activity
     closeActivityModal();
   };
 
@@ -600,8 +610,16 @@ function ProspectsPageContent() {
     showToast('Refreshing prospects...', 'info', 2000);
   };
 
+  const [showAddProspectModal, setShowAddProspectModal] = useState(false);
+
   const createNewProspect = () => {
-    showToast('Create New Prospect feature coming soon!', 'info');
+    setShowAddProspectModal(true);
+  };
+
+  const handleProspectCreated = (data: any) => {
+    showToast('Prospect created successfully!', 'success');
+    loadProspects();
+    setShowAddProspectModal(false);
   };
 
   const hasActiveFilters = territoryFilter || industryFilter || ownerFilter;
@@ -635,44 +653,44 @@ function ProspectsPageContent() {
   };
 
   return (
-    <div className="app-layout bg-gray-900 text-gray-300 flex flex-col min-h-screen">
+    <div className="app-layout bg-gray-900 dark:bg-gray-900 bg-gray-50 text-gray-300 dark:text-gray-300 text-gray-900 flex flex-col min-h-screen transition-colors">
       <AppHeader />
 
       <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 transition-all duration-300">
         <div className="max-w-7xl mx-auto w-full">
           {/* Active Filter Chips Bar (when filters are applied) */}
           {hasActiveFilters && !isBulkSelectMode && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-gray-800 rounded-lg mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 dark:bg-gray-800 bg-white rounded-lg mb-4 border dark:border-transparent border-gray-200">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-gray-400 mr-2 flex-shrink-0">Active Filters:</span>
+                <span className="text-sm font-medium dark:text-gray-400 text-gray-600 mr-2 flex-shrink-0">Active Filters:</span>
                 <div className="flex flex-wrap gap-2 items-center">
                   {territoryFilter && (
-                    <span className="flex items-center gap-1.5 bg-gray-700 text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
+                    <span className="flex items-center gap-1.5 dark:bg-gray-700 bg-gray-200 text-blue-600 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                       <span>Territory: {locations.find((l) => l.name === territoryFilter)?.territory_name || territoryFilter}</span>
-                      <button onClick={() => setTerritoryFilter('')} className="text-gray-400 hover:text-white">
+                      <button onClick={() => setTerritoryFilter('')} className="dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
                   )}
                   {industryFilter && (
-                    <span className="flex items-center gap-1.5 bg-gray-700 text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
+                    <span className="flex items-center gap-1.5 dark:bg-gray-700 bg-gray-200 text-blue-600 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                       <span>Industry: {industryFilter}</span>
-                      <button onClick={() => setIndustryFilter('')} className="text-gray-400 hover:text-white">
+                      <button onClick={() => setIndustryFilter('')} className="dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
                   )}
                   {ownerFilter && (
-                    <span className="flex items-center gap-1.5 bg-gray-700 text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
+                    <span className="flex items-center gap-1.5 dark:bg-gray-700 bg-gray-200 text-blue-600 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                       <span>Owner: {ownerFilter}</span>
-                      <button onClick={() => setOwnerFilter('')} className="text-gray-400 hover:text-white">
+                      <button onClick={() => setOwnerFilter('')} className="dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
                   )}
                 </div>
               </div>
-              <button onClick={clearAllFilters} className="text-sm text-blue-400 hover:text-blue-300 flex-shrink-0">
+              <button onClick={clearAllFilters} className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex-shrink-0">
                 Clear All
               </button>
             </div>
@@ -680,7 +698,7 @@ function ProspectsPageContent() {
 
           {/* Bulk Action Bar (when in selection mode) */}
           {isBulkSelectMode && (
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-gray-700 rounded-lg shadow-lg mb-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 dark:bg-gray-700 bg-white rounded-lg shadow-lg mb-4 border dark:border-transparent border-gray-200">
               <div className="flex items-center gap-4 w-full md:w-auto">
                 <input
                   type="checkbox"
@@ -688,13 +706,13 @@ function ProspectsPageContent() {
                   onChange={toggleSelectAll}
                   className="h-5 w-5 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-600"
                 />
-                <label onClick={toggleSelectAll} className="text-sm font-medium text-white cursor-pointer">
+                <label onClick={toggleSelectAll} className="text-sm font-medium dark:text-white text-gray-900 cursor-pointer">
                   Select All (Visible)
                 </label>
-                <span className="text-sm text-gray-300">
+                <span className="text-sm dark:text-gray-300 text-gray-700">
                   {selectedProspects.size} item{selectedProspects.size !== 1 ? 's' : ''} selected
                 </span>
-                <button onClick={clearSelection} className="text-sm text-blue-400 hover:text-blue-300">
+                <button onClick={clearSelection} className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                   Deselect all
                 </button>
               </div>
@@ -706,7 +724,7 @@ function ProspectsPageContent() {
                     }
                   }}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 border dark:border-gray-500 border-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.987 6.987 0 0010 16.5a6.987 6.987 0 004.793-2.11A5.99 5.99 0 0010 12z" clipRule="evenodd" />
@@ -720,7 +738,7 @@ function ProspectsPageContent() {
                     }
                   }}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 border dark:border-gray-500 border-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-3.5-5 3.5V4z" />
@@ -758,7 +776,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={() => setActiveFilter('queue')}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
+                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
                   }`}
                 >
                   Queue
@@ -774,7 +792,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={() => setActiveFilter('scheduled')}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
                   }`}
                 >
                   Scheduled
@@ -790,7 +808,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={() => setActiveFilter('all')}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                    activeFilter === 'all' ? 'bg-blue-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
                   }`}
                 >
                   All
@@ -803,7 +821,7 @@ function ProspectsPageContent() {
               </div>
 
               {/* Pipeline Status Bar - Compact on Mobile */}
-              <div className="flex h-8 bg-gray-700/50 rounded-lg overflow-hidden">
+              <div className="flex h-8 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
                 {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
                   const count = statusCounts[status as keyof typeof statusCounts] || 0;
                   const statusColors: Record<string, string> = {
@@ -820,7 +838,7 @@ function ProspectsPageContent() {
                       key={status}
                       onClick={() => setActiveFilter(status)}
                       className={`flex-1 flex items-center justify-center gap-1 px-1 py-1 text-xs font-semibold text-white transition-all ${
-                        activeFilter === status ? badgeColor : 'bg-gray-700 hover:bg-gray-600'
+                        activeFilter === status ? badgeColor : 'dark:bg-gray-700 bg-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300'
                       }`}
                       title={`${status.charAt(0).toUpperCase() + status.slice(1)}: ${count}`}
                     >
@@ -839,7 +857,7 @@ function ProspectsPageContent() {
               <button
                 onClick={() => setActiveFilter('queue')}
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-red-700 focus:outline-none transition-colors ${
-                  activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
+                  activeFilter === 'queue' ? 'bg-red-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
                 }`}
               >
                 Queue
@@ -856,7 +874,7 @@ function ProspectsPageContent() {
               <button
                 onClick={() => setActiveFilter('scheduled')}
                 className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
-                  activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                  activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
                 }`}
               >
                 Scheduled
@@ -870,7 +888,7 @@ function ProspectsPageContent() {
               </button>
 
               {/* Proportional Pipeline Bar */}
-              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 bg-gray-700/50 rounded-lg overflow-hidden">
+              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
                 {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
                   const count = statusCounts[status as keyof typeof statusCounts] || 0;
                   const statusColors: Record<string, string> = {
@@ -944,7 +962,7 @@ function ProspectsPageContent() {
                       placeholder="Search prospects..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-gray-700 border border-gray-600 text-gray-200 text-base rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full py-3 pl-11 pr-10 placeholder-gray-400"
+                      className="dark:bg-gray-700 bg-white border dark:border-gray-600 border-gray-300 dark:text-gray-200 text-gray-900 text-base rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full py-3 pl-11 pr-10 dark:placeholder-gray-400 placeholder-gray-500"
                       aria-label="Search prospects"
                       autoFocus
                     />
@@ -962,7 +980,7 @@ function ProspectsPageContent() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowFilterModal(true)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 border border-gray-600 text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-600 active:bg-gray-500 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 dark:bg-gray-700 bg-gray-100 border dark:border-gray-600 border-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-xl text-sm dark:hover:bg-gray-600 hover:bg-gray-200 active:bg-gray-300 transition-colors"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013l-2.5 1a2.25 2.25 0 01-2.316-2.013v-2.927a2.25 2.25 0 00-.659-1.591L2.659 7.409A2.25 2.25 0 012 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
@@ -1178,10 +1196,10 @@ function ProspectsPageContent() {
                     <div
                       key={prospect.id || prospect.name}
                       onClick={() => handleProspectCardClick(prospect)}
-                      className={`bg-gray-800 rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
+                      className={`dark:bg-gray-800 bg-white rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
                         getCardBorderClass(prospect.status)
-                      } ${isSelected(prospect.name || prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : ''} ${
-                        selectedProspect?.name === prospect.name && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-indigo-500' : ''
+                      } ${isSelected(prospect.name || prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'dark:border-gray-700 border-gray-200'} ${
+                        selectedProspect?.name === prospect.name && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-green-500 border-green-500' : ''
                       }`}
                     >
                       {isBulkSelectMode && (
@@ -1202,14 +1220,14 @@ function ProspectsPageContent() {
 
                       <div className="p-4">
                         <div className="flex justify-between items-start">
-                          <h4 className="text-lg font-bold text-white truncate pr-2">
+                          <h4 className="text-lg font-bold dark:text-white text-gray-900 truncate pr-2">
                             {prospect.company_name || 'No Company'}
                           </h4>
                           <span className={`flex-shrink-0 text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusBadgeClass(prospect.status)}`}>
                             {getStatusLabel(prospect.status)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center mt-2 text-xs text-gray-400">
+                        <div className="flex justify-between items-center mt-2 text-xs dark:text-gray-400 text-gray-600">
                           {prospect.city && (
                             <p className="flex items-center">
                               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1233,15 +1251,15 @@ function ProspectsPageContent() {
                         </div>
                       </div>
 
-                      <div className="px-4 pb-4 border-b border-gray-700 space-y-3">
+                      <div className="px-4 pb-4 border-b dark:border-gray-700 border-gray-200 space-y-3">
                         <div className="flex justify-between items-start">
                           <div className="flex items-start">
-                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 dark:text-gray-400 text-gray-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
                             <div className="ml-1.5">
-                              <p className="text-base font-medium text-white">{prospect.lead_name || 'No Contact'}</p>
-                              <p className="text-sm text-gray-400">{prospect.title || 'Contact'}</p>
+                              <p className="text-base font-medium dark:text-white text-gray-900">{prospect.lead_name || 'No Contact'}</p>
+                              <p className="text-sm dark:text-gray-400 text-gray-600">{prospect.title || 'Contact'}</p>
                             </div>
                           </div>
                           {prospect.contact_path && prospect.contact_path.length > 0 && (
@@ -1273,7 +1291,7 @@ function ProspectsPageContent() {
                         )}
                       </div>
 
-                      <div className="p-2 bg-gray-900/50 backdrop-blur-sm border-t border-gray-700/50 mt-auto">
+                      <div className="p-2 dark:bg-gray-900/50 bg-gray-50/50 backdrop-blur-sm border-t dark:border-gray-700/50 border-gray-200/50 mt-auto">
                         <div className="grid grid-cols-3 gap-1">
                           <Tooltip text="Log Call">
                             <button
@@ -1281,10 +1299,11 @@ function ProspectsPageContent() {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 bg-transparent hover:bg-green-600/20 text-gray-300 hover:text-green-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-green-600/30 touch-manipulation min-h-[44px]"
+                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-green-600/20 dark:text-gray-300 text-gray-700 hover:text-green-600 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-green-600/30"
                             >
-                              <Phone className="w-4 h-4" />
-                              <span className="hidden sm:inline">Call</span>
+                              <div className="absolute inset-0 bg-gradient-to-r from-green-600/0 via-green-600/5 to-green-600/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"></div>
+                              <Phone className="w-4 h-4 relative z-10" />
+                              <span className="relative z-10 hidden sm:inline">Call</span>
                             </button>
                           </Tooltip>
                           <Tooltip text="Create Task">
@@ -1293,10 +1312,11 @@ function ProspectsPageContent() {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 bg-transparent hover:bg-blue-600/20 text-gray-300 hover:text-blue-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-blue-600/30 touch-manipulation min-h-[44px]"
+                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-blue-600/20 dark:text-gray-300 text-gray-700 hover:text-blue-600 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-blue-600/30"
                             >
-                              <Plus className="w-4 h-4" />
-                              <span className="hidden sm:inline">Task</span>
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"></div>
+                              <Plus className="w-4 h-4 relative z-10" />
+                              <span className="relative z-10 hidden sm:inline">Task</span>
                             </button>
                           </Tooltip>
                           <Tooltip text="Log Activity">
@@ -1305,10 +1325,11 @@ function ProspectsPageContent() {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2.5 sm:py-2 bg-transparent hover:bg-purple-600/20 text-gray-300 hover:text-purple-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-purple-600/30 touch-manipulation min-h-[44px]"
+                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-purple-600/20 dark:text-gray-300 text-gray-700 hover:text-purple-600 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-purple-600/30"
                             >
-                              <FileText className="w-4 h-4" />
-                              <span className="hidden sm:inline">Log</span>
+                              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-purple-600/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"></div>
+                              <FileText className="w-4 h-4 relative z-10" />
+                              <span className="relative z-10 hidden sm:inline">Log</span>
                             </button>
                           </Tooltip>
                         </div>
@@ -1370,9 +1391,7 @@ function ProspectsPageContent() {
             ? {
                 name: currentProspectForModal.name || currentProspectForModal.id,
                 company_name: currentProspectForModal.company_name,
-                primary_contact: currentProspectForModal.lead_name,
-                phone: currentProspectForModal.primary_phone || currentProspectForModal.phone,
-                email: currentProspectForModal.primary_email || currentProspectForModal.email_id,
+                primary_contact_name: currentProspectForModal.lead_name,
               }
             : undefined
         }
@@ -1573,6 +1592,15 @@ function ProspectsPageContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add Prospect Modal */}
+      {showAddProspectModal && (
+        <AddProspectModal
+          onClose={() => setShowAddProspectModal(false)}
+          onSuccess={handleProspectCreated}
+          territories={locations}
+        />
       )}
     </div>
   );

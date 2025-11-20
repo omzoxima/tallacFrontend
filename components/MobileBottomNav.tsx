@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Activity, Building2, MapPin, UserCog, BookOpen } from 'lucide-react';
+import { Home, Users, Activity, Building2, MapPin, UserCog, BookOpen, FolderTree } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import { getVisibleNavItems } from '@/utils/permissions';
 
@@ -14,6 +14,9 @@ const iconMap = {
   location: MapPin,
   company: Building2,
   'knowledge-base': BookOpen,
+  territories: FolderTree,
+  partners: Building2,
+  users: UserCog,
 };
 
 export default function MobileBottomNav() {

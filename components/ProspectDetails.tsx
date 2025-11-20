@@ -593,9 +593,7 @@ export default function ProspectDetails({
         leadInfo={{
           name: prospect.name || prospect.id,
           company_name: prospect.company_name,
-          primary_contact: prospect.lead_name,
-          phone: prospect.primary_phone || prospect.phone,
-          email: prospect.primary_email || prospect.email_id,
+          primary_contact_name: prospect.lead_name,
         }}
         onClose={closeActivityModal}
         onSave={saveActivity}
