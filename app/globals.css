@@ -16,8 +16,8 @@
 }
 
 .dark {
-  --background: #111827;
-  --foreground: #f9fafb;
+  --background: rgb(23 23 23);
+  --foreground: rgb(226 226 226);
   --surface-muted: #1f2937;
   --surface-card: #1f2937;
   --surface-border: #374151;
@@ -60,11 +60,12 @@ body {
 }
 
 /* Override frequently used Tailwind utility colors for better contrast - Dark mode */
-.dark .bg-gray-900 { background-color: #111827 !important; }
-.dark .bg-gray-800 { background-color: #1f2937 !important; }
-.dark .border-gray-700 { border-color: #374151 !important; }
+.dark .bg-gray-900 { background-color: rgb(23 23 23) !important; }
+.dark .bg-gray-800 { background-color: #383838 !important; }
+.dark .border-gray-700 { border-color: #525252 !important; }
 .dark .bg-gray-700 { background-color: #1f2435 !important; }
 .dark .border-gray-600 { border-color: #343c52 !important; }
+.dark .text-gray-300 { color: rgb(226 226 226) !important; }
 
 /* Light mode overrides */
 :root:not(.dark) .bg-gray-900 { background-color: #f8fafc !important; }
@@ -73,8 +74,28 @@ body {
 :root:not(.dark) .bg-gray-700 { background-color: #eef1f7 !important; }
 :root:not(.dark) .border-gray-600 { border-color: #cbd5f5 !important; }
 
+/* Header should always be in light mode */
+header,
+header * {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+}
+
+header .text-gray-600,
+header .text-gray-700,
+header .text-gray-900 {
+  color: inherit !important;
+}
+
+/* Headings should always be white in both modes */
+h1, h2, h3, h4, h5, h6,
+.text-white,
+.dark .text-white,
+:root:not(.dark) .text-white {
+  color: #ffffff !important;
+}
+
 /* Text color helpers for light mode readability */
-:root:not(.dark) .text-white { color: #1f2937 !important; }
 :root:not(.dark) .text-gray-100 { color: #374151 !important; }
 :root:not(.dark) .text-gray-200 { color: #4b5563 !important; }
 :root:not(.dark) .text-gray-300 { color: #6b7280 !important; }
@@ -234,5 +255,21 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* Fade in animation for modal steps */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
 }
 

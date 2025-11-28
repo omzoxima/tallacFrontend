@@ -660,7 +660,7 @@ function ProspectsPageContent() {
         <div className="max-w-7xl mx-auto w-full">
           {/* Active Filter Chips Bar (when filters are applied) */}
           {hasActiveFilters && !isBulkSelectMode && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 dark:bg-gray-800 bg-white rounded-lg mb-4 border dark:border-transparent border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 dark:bg-gray-800 bg-white rounded-lg mb-4 border dark:border-gray-700 border-gray-200">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium dark:text-gray-400 text-gray-600 mr-2 flex-shrink-0">Active Filters:</span>
                 <div className="flex flex-wrap gap-2 items-center">
@@ -698,7 +698,7 @@ function ProspectsPageContent() {
 
           {/* Bulk Action Bar (when in selection mode) */}
           {isBulkSelectMode && (
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 dark:bg-gray-700 bg-white rounded-lg shadow-lg mb-4 border dark:border-transparent border-gray-200">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 dark:bg-gray-800 bg-white rounded-lg shadow-lg mb-4 border dark:border-gray-700 border-gray-200">
               <div className="flex items-center gap-4 w-full md:w-auto">
                 <input
                   type="checkbox"
@@ -1186,7 +1186,7 @@ function ProspectsPageContent() {
                     <svg className="mx-auto h-16 w-16 text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
                     </svg>
-                    <h3 className="text-xl font-semibold text-white mb-2">No prospects found</h3>
+                    <h3 className="text-xl font-semibold text-white dark:text-white text-gray-900 mb-2">No prospects found</h3>
                     <p className="text-sm text-gray-400">Try adjusting your filters.</p>
                   </div>
                 </div>
@@ -1409,7 +1409,7 @@ function ProspectsPageContent() {
             className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-700">
+            <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 border-gray-200">
               <h3 className="text-lg font-medium text-white">
                 Assign Prospect{selectedProspects.size > 1 ? 's' : ''}:{' '}
                 <span>{currentProspect?.company_name || `${selectedProspects.size} prospects`}</span>
@@ -1474,7 +1474,7 @@ function ProspectsPageContent() {
             className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-700">
+            <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 border-gray-200">
               <h3 className="text-lg font-medium text-white">Advanced Filters</h3>
               <button onClick={() => setShowFilterModal(false)} className="text-gray-400 hover:text-white" title="Close">
                 <X className="w-6 h-6" />
@@ -1531,7 +1531,7 @@ function ProspectsPageContent() {
                 </select>
               </div>
             </div>
-            <div className="flex justify-between items-center p-4 border-t border-gray-700 bg-gray-800/50 rounded-b-lg">
+            <div className="flex justify-between items-center p-4 border-t dark:border-gray-700 border-gray-200 dark:bg-gray-800/50 bg-gray-50 rounded-b-lg">
               <button
                 onClick={clearAllFilters}
                 className="px-4 py-2 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700"
@@ -1559,7 +1559,7 @@ function ProspectsPageContent() {
             className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-700">
+            <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 border-gray-200">
               <h3 className="text-lg font-medium text-white">Change Status ({selectedProspects.size} prospects)</h3>
               <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-white">
                 <X className="w-6 h-6" />

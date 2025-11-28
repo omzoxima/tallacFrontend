@@ -57,19 +57,13 @@ export default function Dashboard() {
         return;
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-
       try {
         const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          signal: controller.signal
+          }
         });
-        
-        clearTimeout(timeoutId);
         
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
@@ -87,31 +81,11 @@ export default function Dashboard() {
         setPipeline((prev) => data.pipeline || prev);
         setActivityBreakdown((prev) => data.activityBreakdown || prev);
         
-        setPerformance({
-          callsMade: 127,
-          callsChange: 12,
-          emailsSent: 64,
-          emailsChange: 8,
-          appointments: 9,
-          appointmentsChange: 15,
-          dealsClosed: 3,
-          dealsChange: 20,
-        });
-        
-        setWeeklyPerformance({
-          newProspects: 34,
-          totalActivities: 312,
-          responseRate: 68,
-          revenue: 125000,
-        });
+        // Use real data from API
+        setPerformance((prev) => data.performance || prev);
+        setWeeklyPerformance((prev) => data.weeklyPerformance || prev);
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          console.warn('Dashboard data loading timeout (6s)');
-          showToast('Dashboard loading timeout. Please refresh the page.', 'error');
-        } else {
-          throw fetchError;
-        }
+        throw fetchError;
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -146,15 +120,7 @@ export default function Dashboard() {
     }
     
     if (userLoading) {
-      const timeoutId = setTimeout(() => {
-        console.warn('User context loading timeout (6s), redirecting to login');
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('token');
-        }
-        router.push('/login');
-      }, 6000);
-      
-      return () => clearTimeout(timeoutId);
+      return;
     }
     
     if (!user || !user.id) {
@@ -183,14 +149,6 @@ export default function Dashboard() {
     router.push(path);
   };
 
-  useEffect(() => {
-    if (loading) {
-      const timeoutId = setTimeout(() => {
-        setLoading(false);
-      }, 6000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [loading]);
 
   if (userLoading) {
     return (
@@ -234,7 +192,7 @@ export default function Dashboard() {
           
           {/* 1. Overview KPIs */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white dark:text-white text-gray-900 mb-4">Business Overview</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">Business Overview</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Total Prospects */}
@@ -250,89 +208,89 @@ export default function Dashboard() {
               </div>
 
               {/* Total Activities */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-purple-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-purple-500 dark:hover:border-purple-500 transition-colors shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Total Activities</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Total Activities</span>
                   <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </div>
-                <div className="text-3xl font-bold text-white">{kpis.totalActivities || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">All time activities</div>
+                <div className="text-3xl font-bold text-white dark:text-white text-gray-900">{kpis.totalActivities || 0}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">All time activities</div>
               </div>
 
               {/* Conversion Rate */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-green-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-green-500 dark:hover:border-green-500 transition-colors shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Conversion Rate</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Conversion Rate</span>
                   <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
-                <div className="text-3xl font-bold text-white">{kpis.conversionRate || 0}%</div>
-                <div className="text-xs text-gray-500 mt-1">Prospects to Won</div>
+                <div className="text-3xl font-bold text-white dark:text-white text-gray-900">{kpis.conversionRate || 0}%</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">Prospects to Won</div>
               </div>
 
               {/* Active Users */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-yellow-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-yellow-500 dark:hover:border-yellow-500 transition-colors shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Active Users</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Active Users</span>
                   <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
-                <div className="text-3xl font-bold text-white">{kpis.activeUsers || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Team members</div>
+                <div className="text-3xl font-bold text-white dark:text-white text-gray-900">{kpis.activeUsers || 0}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">Team members</div>
               </div>
             </div>
           </div>
 
           {/* 2. Pipeline Overview */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white dark:text-white text-gray-900 mb-4">Pipeline Overview</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">Pipeline Overview</h2>
             <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200 shadow-sm">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 
                 {/* New */}
                 <div className="text-center">
                   <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">New</div>
-                  <div className="text-2xl font-bold text-blue-400">{pipeline.new || 0}</div>
+                  <div className="text-2xl font-bold text-blue-400 dark:text-blue-400 text-blue-600">{pipeline.new || 0}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('new')}%</div>
                 </div>
 
                 {/* Contacted */}
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-2">Contacted</div>
-                  <div className="text-2xl font-bold text-purple-400">{pipeline.contacted || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{pipelinePercentage('contacted')}%</div>
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">Contacted</div>
+                  <div className="text-2xl font-bold text-purple-400 dark:text-purple-400 text-purple-600">{pipeline.contacted || 0}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('contacted')}%</div>
                 </div>
 
                 {/* Interested */}
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-2">Interested</div>
-                  <div className="text-2xl font-bold text-yellow-400">{pipeline.interested || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{pipelinePercentage('interested')}%</div>
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">Interested</div>
+                  <div className="text-2xl font-bold text-yellow-400 dark:text-yellow-400 text-yellow-600">{pipeline.interested || 0}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('interested')}%</div>
                 </div>
 
                 {/* Proposal */}
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-2">Proposal</div>
-                  <div className="text-2xl font-bold text-orange-400">{pipeline.proposal || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{pipelinePercentage('proposal')}%</div>
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">Proposal</div>
+                  <div className="text-2xl font-bold text-orange-400 dark:text-orange-400 text-orange-600">{pipeline.proposal || 0}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('proposal')}%</div>
                 </div>
 
                 {/* Won */}
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-2">Won</div>
-                  <div className="text-2xl font-bold text-green-400">{pipeline.won || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{pipelinePercentage('won')}%</div>
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">Won</div>
+                  <div className="text-2xl font-bold text-green-400 dark:text-green-400 text-green-600">{pipeline.won || 0}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('won')}%</div>
                 </div>
 
                 {/* Lost */}
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-2">Lost</div>
-                  <div className="text-2xl font-bold text-red-400">{pipeline.lost || 0}</div>
-                  <div className="text-xs text-gray-500 mt-1">{pipelinePercentage('lost')}%</div>
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">Lost</div>
+                  <div className="text-2xl font-bold text-red-400 dark:text-red-400 text-red-600">{pipeline.lost || 0}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">{pipelinePercentage('lost')}%</div>
                 </div>
               </div>
 
@@ -366,33 +324,33 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               {/* Queue */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-red-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-red-500 dark:hover:border-red-500 transition-colors">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">In Queue</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">In Queue</span>
                   <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{activityBreakdown.queue || 0}</span>
                 </div>
-                <div className="text-2xl font-bold text-white">{activityBreakdown.queue || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Pending activities</div>
+                <div className="text-2xl font-bold text-white dark:text-white text-gray-900">{activityBreakdown.queue || 0}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">Pending activities</div>
               </div>
 
               {/* Scheduled */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-yellow-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-yellow-500 dark:hover:border-yellow-500 transition-colors">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Scheduled</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Scheduled</span>
                   <span className="bg-yellow-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{activityBreakdown.scheduled || 0}</span>
                 </div>
-                <div className="text-2xl font-bold text-white">{activityBreakdown.scheduled || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Upcoming activities</div>
+                <div className="text-2xl font-bold text-white dark:text-white text-gray-900">{activityBreakdown.scheduled || 0}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">Upcoming activities</div>
               </div>
 
               {/* Completed Today */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-green-500 transition-colors">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200 hover:border-green-500 dark:hover:border-green-500 transition-colors">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-400">Completed Today</span>
+                  <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Completed Today</span>
                   <span className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{activityBreakdown.completedToday || 0}</span>
                 </div>
-                <div className="text-2xl font-bold text-white">{activityBreakdown.completedToday || 0}</div>
-                <div className="text-xs text-gray-500 mt-1">Activities done</div>
+                <div className="text-2xl font-bold text-white dark:text-white text-gray-900">{activityBreakdown.completedToday || 0}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">Activities done</div>
               </div>
             </div>
           </div>
@@ -401,7 +359,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             
             {/* Today's Performance */}
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200 shadow-sm">
               <h3 className="text-lg font-semibold text-white mb-4">Today's Performance</h3>
               <div className="space-y-4">
                 
@@ -414,11 +372,11 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Calls Made</div>
-                      <div className="text-xl font-bold text-white">{performance.callsMade || 0}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Calls Made</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{performance.callsMade || 0}</div>
                     </div>
                   </div>
-                  <div className="text-sm text-green-400">+{performance.callsChange || 0}%</div>
+                  <div className="text-sm text-green-400 dark:text-green-400 text-green-600">+{performance.callsChange || 0}%</div>
                 </div>
 
                 {/* Emails Sent */}
@@ -430,11 +388,11 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Emails Sent</div>
-                      <div className="text-xl font-bold text-white">{performance.emailsSent || 0}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Emails Sent</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{performance.emailsSent || 0}</div>
                     </div>
                   </div>
-                  <div className="text-sm text-green-400">+{performance.emailsChange || 0}%</div>
+                  <div className="text-sm text-green-400 dark:text-green-400 text-green-600">+{performance.emailsChange || 0}%</div>
                 </div>
 
                 {/* Appointments Set */}
@@ -446,11 +404,11 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Appointments</div>
-                      <div className="text-xl font-bold text-white">{performance.appointments || 0}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Appointments</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{performance.appointments || 0}</div>
                     </div>
                   </div>
-                  <div className="text-sm text-green-400">+{performance.appointmentsChange || 0}%</div>
+                  <div className="text-sm text-green-400 dark:text-green-400 text-green-600">+{performance.appointmentsChange || 0}%</div>
                 </div>
 
                 {/* Deals Closed */}
@@ -462,17 +420,17 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Deals Closed</div>
-                      <div className="text-xl font-bold text-white">{performance.dealsClosed || 0}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Deals Closed</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{performance.dealsClosed || 0}</div>
                     </div>
                   </div>
-                  <div className="text-sm text-green-400">+{performance.dealsChange || 0}%</div>
+                  <div className="text-sm text-green-400 dark:text-green-400 text-green-600">+{performance.dealsChange || 0}%</div>
                 </div>
               </div>
             </div>
 
             {/* Weekly Performance */}
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200 shadow-sm">
               <h3 className="text-lg font-semibold text-white mb-4">This Week's Performance</h3>
               <div className="space-y-4">
                 
@@ -485,8 +443,8 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">New Prospects</div>
-                      <div className="text-xl font-bold text-white">{weeklyPerformance.newProspects || 0}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">New Prospects</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{weeklyPerformance.newProspects || 0}</div>
                     </div>
                   </div>
                 </div>
@@ -500,8 +458,8 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Total Activities</div>
-                      <div className="text-xl font-bold text-white">{weeklyPerformance.totalActivities || 0}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Total Activities</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{weeklyPerformance.totalActivities || 0}</div>
                     </div>
                   </div>
                 </div>
@@ -515,8 +473,8 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Response Rate</div>
-                      <div className="text-xl font-bold text-white">{weeklyPerformance.responseRate || 0}%</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Response Rate</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">{weeklyPerformance.responseRate || 0}%</div>
                     </div>
                   </div>
                 </div>
@@ -530,8 +488,8 @@ export default function Dashboard() {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-400">Revenue</div>
-                      <div className="text-xl font-bold text-white">${formatNumber(weeklyPerformance.revenue || 0)}</div>
+                      <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Revenue</div>
+                      <div className="text-xl font-bold text-white dark:text-white text-gray-900">${formatNumber(weeklyPerformance.revenue || 0)}</div>
                     </div>
                   </div>
                 </div>
@@ -540,13 +498,13 @@ export default function Dashboard() {
           </div>
 
           {/* 5. Quick Actions */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200 shadow-sm">
             <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               <button 
                 onClick={() => navigateTo('/prospects')} 
-                className="flex items-center gap-3 p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+                className="flex items-center gap-3 p-4 bg-gray-700 dark:bg-gray-700 bg-gray-100 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 rounded-lg transition-colors text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -554,14 +512,14 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-white">Add Prospect</div>
-                  <div className="text-xs text-gray-400">Create new lead</div>
+                  <div className="text-sm font-medium text-white dark:text-white text-gray-900">Add Prospect</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">Create new lead</div>
                 </div>
               </button>
 
               <button 
                 onClick={() => navigateTo('/activities')} 
-                className="flex items-center gap-3 p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+                className="flex items-center gap-3 p-4 bg-gray-700 dark:bg-gray-700 bg-gray-100 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 rounded-lg transition-colors text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -569,14 +527,14 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-white">Log Activity</div>
-                  <div className="text-xs text-gray-400">Record interaction</div>
+                  <div className="text-sm font-medium text-white dark:text-white text-gray-900">Log Activity</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">Record interaction</div>
                 </div>
               </button>
 
               <button 
                 onClick={() => navigateTo('/prospects?filter=queue')} 
-                className="flex items-center gap-3 p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+                className="flex items-center gap-3 p-4 bg-gray-700 dark:bg-gray-700 bg-gray-100 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 rounded-lg transition-colors text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -584,14 +542,14 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-white">View Queue</div>
-                  <div className="text-xs text-gray-400">Pending tasks</div>
+                  <div className="text-sm font-medium text-white dark:text-white text-gray-900">View Queue</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">Pending tasks</div>
                 </div>
               </button>
 
               <button 
                 onClick={() => navigateTo('/activities?filter=scheduled')} 
-                className="flex items-center gap-3 p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-left"
+                className="flex items-center gap-3 p-4 bg-gray-700 dark:bg-gray-700 bg-gray-100 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 rounded-lg transition-colors text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-yellow-600 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -599,8 +557,8 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-white">View Scheduled</div>
-                  <div className="text-xs text-gray-400">Upcoming events</div>
+                  <div className="text-sm font-medium text-white dark:text-white text-gray-900">View Scheduled</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">Upcoming events</div>
                 </div>
               </button>
             </div>
