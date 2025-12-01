@@ -275,14 +275,14 @@ export default function KnowledgeBasePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-gray-50 text-white dark:text-white text-gray-900 flex items-center justify-center">
         <p>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-gray-50 text-white dark:text-white text-gray-900">
       <AppHeader />
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
@@ -312,31 +312,31 @@ export default function KnowledgeBasePage() {
             placeholder="Search files..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-700 dark:border-gray-700 border-gray-300 text-white dark:text-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         {/* Upload Modal */}
         {showUploadModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full">
-              <h2 className="text-xl font-bold mb-4 text-white">Upload File</h2>
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 max-w-2xl w-full border border-gray-700 dark:border-gray-700 border-gray-200">
+              <h2 className="text-xl font-bold mb-4 text-white dark:text-white text-gray-900">Upload File</h2>
               <form onSubmit={handleUpload} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">Select File</label>
+                  <label className="block text-sm font-medium mb-2 text-gray-300 dark:text-gray-300 text-gray-700">Select File</label>
                   <input
                     type="file"
                     onChange={handleFileSelect}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 dark:bg-gray-700 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-white dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-300">Description</label>
+                  <label className="block text-sm font-medium mb-2 text-gray-300 dark:text-gray-300 text-gray-700">Description</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 dark:bg-gray-700 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-white dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
                     placeholder="File description..."
                   />
@@ -347,7 +347,7 @@ export default function KnowledgeBasePage() {
                   </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto bg-gray-700 p-3 rounded-md">
                     {ROLE_OPTIONS.map(role => (
-                      <label key={role} className="flex items-center gap-2 text-sm text-gray-300">
+                      <label key={role} className="flex items-center gap-2 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                         <input
                           type="checkbox"
                           checked={selectedRoles.includes(role)}
@@ -397,11 +397,11 @@ export default function KnowledgeBasePage() {
         {/* Edit Roles Modal */}
         {showEditModal && editingFile && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full">
-              <h2 className="text-xl font-bold mb-4 text-white">Edit File Roles</h2>
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 max-w-2xl w-full border border-gray-700 dark:border-gray-700 border-gray-200">
+              <h2 className="text-xl font-bold mb-4 text-white dark:text-white text-gray-900">Edit File Roles</h2>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-300 mb-2">File: {editingFile.original_name}</p>
+                  <p className="text-sm text-gray-300 dark:text-gray-300 text-gray-700 mb-2">File: {editingFile.original_name}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-300">
@@ -409,7 +409,7 @@ export default function KnowledgeBasePage() {
                   </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto bg-gray-700 p-3 rounded-md">
                     {ROLE_OPTIONS.map(role => (
-                      <label key={role} className="flex items-center gap-2 text-sm text-gray-300">
+                      <label key={role} className="flex items-center gap-2 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                         <input
                           type="checkbox"
                           checked={selectedRoles.includes(role)}
@@ -460,16 +460,16 @@ export default function KnowledgeBasePage() {
             <p className="mt-4 text-gray-400">Loading files...</p>
           </div>
         ) : filteredFiles.length === 0 ? (
-          <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
-            <p className="text-gray-400">No files found</p>
+          <div className="text-center py-12 bg-gray-800 dark:bg-gray-800 bg-white rounded-lg border border-gray-700 dark:border-gray-700 border-gray-200">
+            <p className="text-gray-400 dark:text-gray-400 text-gray-600">No files found</p>
           </div>
         ) : view === 'list' ? (
-          <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg overflow-hidden border border-gray-700 dark:border-gray-700 border-gray-200">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-700/50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">File Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white dark:text-white text-gray-900">File Name</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Description</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Size</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Uploaded By</th>
@@ -487,7 +487,7 @@ export default function KnowledgeBasePage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <FileIconComponent className="w-5 h-5 text-blue-400" />
-                            <span className="text-sm text-white font-medium">{file.original_name}</span>
+                            <span className="text-sm text-white dark:text-white text-gray-900 font-medium">{file.original_name}</span>
                             {file.is_owner && (
                               <span className="px-2 py-0.5 bg-green-600/20 text-green-300 rounded text-xs">
                                 Your file
@@ -495,16 +495,16 @@ export default function KnowledgeBasePage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-300">
+                        <td className="px-6 py-4 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                           {file.description || '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-300">
+                        <td className="px-6 py-4 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                           {formatFileSize(file.file_size)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-300">
+                        <td className="px-6 py-4 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                           {file.uploaded_by_name || '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-300">
+                        <td className="px-6 py-4 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                           {file.assigned_roles && file.assigned_roles.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {file.assigned_roles.map((r, idx) => (
@@ -517,7 +517,7 @@ export default function KnowledgeBasePage() {
                             <span className="text-gray-500 italic">All roles</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-300">
+                        <td className="px-6 py-4 text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                           {new Date(file.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">

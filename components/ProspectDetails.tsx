@@ -21,8 +21,9 @@ import {
   Linkedin,
   Activity,
 } from 'lucide-react';
-import ActiveCallCard from './ActiveCallCard';
 import TallacActivityModal from './TallacActivityModal';
+import ContactModal from './ContactModal';
+import EditCompanyModal from './EditCompanyModal';
 import { useCall } from '@/contexts/CallContext';
 
 interface ProspectDetailsProps {
@@ -53,6 +54,7 @@ export default function ProspectDetails({
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [noteText, setNoteText] = useState('');
@@ -60,6 +62,9 @@ export default function ProspectDetails({
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [expandedContacts, setExpandedContacts] = useState<Record<string, boolean>>({});
   const [repSearchQuery, setRepSearchQuery] = useState('');
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactModalMode, setContactModalMode] = useState<'add' | 'edit'>('add');
+  const [editingContact, setEditingContact] = useState<any>(null);
 
   const salesReps = [
     { name: 'user1@example.com', full_name: 'John Doe', email: 'john@example.com' },
@@ -92,11 +97,28 @@ export default function ProspectDetails({
   };
 
   const getContactCount = () => {
+    // Primary contact always counts as 1
     let count = 1;
+    // Only count contacts in contact_path that are NOT the primary contact
     if (prospect?.contact_path && prospect.contact_path.length > 0) {
-      count += prospect.contact_path.length;
+      const primaryContactId = prospect.primary_contact_id;
+      const additionalContacts = prospect.contact_path.filter((contact: any) => 
+        contact.id !== primaryContactId
+      );
+      count += additionalContacts.length;
     }
     return count;
+  };
+
+  // Get additional contacts (excluding primary contact)
+  const getAdditionalContacts = () => {
+    if (!prospect?.contact_path || prospect.contact_path.length === 0) {
+      return [];
+    }
+    const primaryContactId = prospect.primary_contact_id;
+    return prospect.contact_path.filter((contact: any) => 
+      contact.id !== primaryContactId
+    );
   };
 
   const tabs = [
@@ -212,16 +234,119 @@ export default function ProspectDetails({
   };
 
   const openEditModal = () => {
-    setShowEditModal(true);
+    setShowEditCompanyModal(true);
   };
 
   const closeEditModal = () => {
-    setShowEditModal(false);
+    setShowEditCompanyModal(false);
   };
 
-  const saveEdit = () => {
-    console.log('Saving prospect edits');
-    closeEditModal();
+  const handleSaveCompany = async (companyData: any) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      
+      // Find partner ID from prospect
+      const partnerId = prospect.organization_id || prospect.organization;
+      
+      if (!partnerId) {
+        alert('Company/Partner ID not found');
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/partners/${partnerId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          partner_name: companyData.company_name,
+          industry: companyData.industry,
+          website: companyData.website,
+          phone: companyData.main_phone,
+          address: companyData.street_address,
+          city: companyData.city,
+          state: companyData.state,
+          zip_code: companyData.zip_code,
+          employee_size: companyData.employee_count,
+          revenue: companyData.annual_revenue,
+          overview: companyData.overview,
+          social_profiles: companyData.social_profiles,
+        }),
+      });
+      
+      if (response.ok) {
+        // Refresh page to show updated data
+        window.location.reload();
+        setShowEditCompanyModal(false);
+      } else {
+        const error = await response.json();
+        console.error('Error updating company:', error);
+        alert('Failed to update company');
+      }
+    } catch (error) {
+      console.error('Error saving company:', error);
+      alert('Failed to save company');
+    }
+  };
+
+  const handleSaveContact = async (contactData: any) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      
+      if (contactModalMode === 'add') {
+        // Create new contact
+        const response = await fetch(`${apiUrl}/api/contacts`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...contactData,
+            lead_id: prospect.name,
+          }),
+        });
+        
+        if (response.ok) {
+          // Refresh prospect details
+          if (onClose) {
+            // Trigger refresh by closing and reopening or calling a refresh callback
+            window.location.reload(); // Temporary - should use proper state management
+          }
+          setShowContactModal(false);
+        } else {
+          const error = await response.json();
+          console.error('Error creating contact:', error);
+          alert('Failed to create contact');
+        }
+      } else {
+        // Update existing contact
+        const response = await fetch(`${apiUrl}/api/contacts/${editingContact?.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(contactData),
+        });
+        
+        if (response.ok) {
+          // Refresh prospect details
+          window.location.reload(); // Temporary - should use proper state management
+          setShowContactModal(false);
+        } else {
+          const error = await response.json();
+          console.error('Error updating contact:', error);
+          alert('Failed to update contact');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving contact:', error);
+      alert('Failed to save contact');
+    }
   };
 
   const openAssignModal = () => {
@@ -259,7 +384,7 @@ export default function ProspectDetails({
   return (
     <div
       className={`bg-gray-800 rounded-lg shadow-lg border-2 flex flex-col ${
-        mode === 'popup' ? 'h-full max-h-[90vh]' : 'min-h-screen'
+        mode === 'popup' ? 'h-full max-h-[90vh] overflow-hidden' : 'min-h-screen'
       } ${getCardBorderClass(prospect.status)} ${containerClass}`}
     >
       {/* Header */}
@@ -292,12 +417,7 @@ export default function ProspectDetails({
           </div>
         </div>
 
-        <ActiveCallCard
-          prospectId={prospect.name || prospect.id}
-          prospectName={prospect.lead_name}
-          phoneNumber={prospect.primary_phone || prospect.phone}
-          onHangUp={handleHangUp}
-        />
+        {/* Active call banner is now rendered globally under AppHeader */}
 
         <div className="flex flex-col gap-4">
           <div className="flex items-start space-x-2">
@@ -390,7 +510,7 @@ export default function ProspectDetails({
       </div>
 
       {/* Tab Content */}
-      <div className="bg-gray-800 flex-1 min-h-0 overflow-y-auto">
+      <div className={`bg-gray-800 flex-1 min-h-0 ${mode === 'popup' ? 'overflow-y-auto' : 'overflow-y-auto'}`}>
         {activeTab === 'activity' && (
           <div className={`${paddingClass} space-y-4`}>
             <div>
@@ -465,9 +585,16 @@ export default function ProspectDetails({
                 <Users className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
                 Contacts ({getContactCount()})
               </h3>
-              <button className="flex items-center space-x-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors">
-                <Plus className="w-3 h-3" />
-                <span>Add</span>
+              <button 
+                onClick={() => {
+                  setContactModalMode('add');
+                  setEditingContact(null);
+                  setShowContactModal(true);
+                }}
+                className="group flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-medium rounded-md transition-all border border-blue-600/30 hover:border-blue-600/50"
+              >
+                <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" />
+                <span>Add Contact</span>
               </button>
             </div>
             <div className="space-y-3">
@@ -493,6 +620,13 @@ export default function ProspectDetails({
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onCall) onCall(prospect);
+                        // Trigger OS dialer (FaceTime/Dialpad/Mobile) via tel: link
+                        const phone = prospect.phone || prospect.primary_phone || prospect.primary_mobile || '';
+                        if (phone && typeof window !== 'undefined') {
+                          window.location.href = `tel:${phone}`;
+                        }
+                        // Also update global call banner
+                        startCall(prospect, '');
                       }}
                       className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded-md transition-colors"
                       title="Call"
@@ -525,6 +659,52 @@ export default function ProspectDetails({
                 )}
               </div>
             </div>
+            
+            {/* Additional Contacts from Contact Path (excluding primary) */}
+            {getAdditionalContacts().length > 0 && (
+              <div className="space-y-3 mt-4">
+                {getAdditionalContacts().map((contact: any, index: number) => (
+                  <div
+                    key={index}
+                    onClick={() => toggleContactExpansion(`contact-${index}`)}
+                    className="bg-gray-700/50 hover:bg-gray-700 rounded-md p-3 border-l-[3px] border-blue-500 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <div className={`${mode === 'split' ? 'w-10 h-10' : 'w-12 h-12'} rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white font-bold flex-shrink-0`}>
+                          <span className={mode === 'split' ? 'text-xs' : 'text-sm'}>{getInitials(contact.name)}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white font-medium text-sm truncate">{contact.name || 'Unknown'}</h4>
+                          <p className="text-gray-300 text-xs">{contact.status || 'Contact'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    {expandedContacts[`contact-${index}`] && (
+                      <div className="mt-3 pt-3 border-t border-gray-600 space-y-2">
+                        <p className="text-gray-400 text-xs">Sequence: {contact.sequence || 'N/A'}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {getAdditionalContacts().length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm mb-3">No additional contacts</p>
+                <button
+                  onClick={() => {
+                    setContactModalMode('add');
+                    setEditingContact(null);
+                    setShowContactModal(true);
+                  }}
+                  className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                >
+                  + Add Contact
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -585,6 +765,23 @@ export default function ProspectDetails({
           </div>
         )}
       </div>
+
+      {/* Contact Modal */}
+      <ContactModal
+        show={showContactModal}
+        mode={contactModalMode}
+        contactData={editingContact}
+        organizationId={prospect.organization_id || prospect.organization}
+        onClose={() => setShowContactModal(false)}
+        onSave={handleSaveContact}
+      />
+
+      <EditCompanyModal
+        show={showEditCompanyModal}
+        companyData={prospect}
+        onClose={closeEditModal}
+        onSave={handleSaveCompany}
+      />
 
       {/* Modals */}
       <TallacActivityModal

@@ -45,26 +45,26 @@ export default function PartnerCard({
     return (
       <div
         onClick={onClick}
-        className={`bg-gray-800 rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl border-2 cursor-pointer p-4 grid gap-4 items-center ${
+        className={`bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl border-2 cursor-pointer p-4 grid gap-4 items-center ${
           getStatusBorderClass(partner.partner_status)
-        } ${isSelected ? 'ring-2 ring-green-500 border-green-500' : 'border-gray-700'}`}
+        } ${isSelected ? 'ring-2 ring-green-500 border-green-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'}`}
         style={{ gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 0.8fr' }}
       >
         {/* Column 1: Partner Name + Code */}
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-base font-bold text-white truncate">{partner.partner_name}</h4>
+            <h4 className="text-base font-bold text-white dark:text-white text-gray-900 truncate">{partner.partner_name}</h4>
             <span className="text-xs font-mono text-orange-400 bg-orange-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
               {partner.partner_code}
             </span>
           </div>
-          <p className="text-sm text-gray-400 truncate">{getFullAddress(partner)}</p>
+          <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 truncate">{getFullAddress(partner)}</p>
         </div>
 
         {/* Column 2: Territory Count */}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white mb-1">{partner.territory_count || 0}</p>
-          <p className="text-xs text-gray-400">Territories</p>
+          <p className="text-sm font-semibold text-white dark:text-white text-gray-900 mb-1">{partner.territory_count || 0}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">Territories</p>
         </div>
 
         {/* Column 3: Admin Count */}

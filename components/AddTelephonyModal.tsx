@@ -72,9 +72,9 @@ export default function AddTelephonyModal({ user, onClose, onSuccess }: AddTelep
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center px-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500">Add Telephony Line</p>
             <h2 className="text-xl font-semibold text-white">Add line for {user.full_name || user.name || user.email}</h2>
@@ -107,7 +107,7 @@ export default function AddTelephonyModal({ user, onClose, onSuccess }: AddTelep
                   type="tel"
                   value={formData.phone_number}
                   onChange={(e) => handleChange('phone_number', e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block px-3 py-2 placeholder-gray-500"
+                  className="w-full bg-gray-900/60 border border-gray-700 text-gray-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block px-3 py-2 placeholder-gray-500"
                   placeholder="+1 (555) 000-0000"
                   required
                 />
@@ -117,7 +117,7 @@ export default function AddTelephonyModal({ user, onClose, onSuccess }: AddTelep
                 <select
                   value={formData.line_type}
                   onChange={(e) => handleChange('line_type', e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block px-3 py-2"
+                  className="w-full bg-gray-900/60 border border-gray-700 text-gray-200 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block px-3 py-2"
                   required
                 >
                   <option value="">Select type</option>
@@ -133,11 +133,11 @@ export default function AddTelephonyModal({ user, onClose, onSuccess }: AddTelep
                 type="text"
                 value={formData.carrier}
                 onChange={(e) => handleChange('carrier', e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:ring-green-500 focus:border-green-500 placeholder-gray-500"
+                className="w-full bg-gray-900/60 border border-gray-700 rounded-lg px-3 py-2 text-white focus:ring-green-500 focus:border-green-500 placeholder-gray-500"
                 placeholder="e.g., Twilio, AT&T, Verizon"
               />
             </div>
-            <div className="mt-2 p-3 bg-gray-700/50 rounded-lg border border-gray-600/50">
+            <div className="mt-2 p-3 bg-gray-900/60 rounded-lg border border-gray-700/60">
               <p className="text-xs text-gray-300 flex items-start gap-2">
                 <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-400" />
                 <span>This will create a new telephony line and assign it to the user. The user can have multiple telephony lines.</span>
@@ -146,7 +146,7 @@ export default function AddTelephonyModal({ user, onClose, onSuccess }: AddTelep
           </div>
         </form>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-800 bg-gray-900">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700 bg-gray-800">
           <button
             type="button"
             disabled={isSubmitting}

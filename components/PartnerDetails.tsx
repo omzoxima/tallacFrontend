@@ -64,14 +64,23 @@ export default function PartnerDetails({
   };
 
   const territoryAdmins = useMemo(() => {
-    if (!partner.team_members) return [];
-    return partner.team_members.filter((member: any) =>
-      member.role && (
-        member.role.toLowerCase().includes('admin') ||
-        member.role.toLowerCase().includes('owner') ||
-        member.role.toLowerCase().includes('director')
-      )
-    );
+    if (!partner.team_members || !Array.isArray(partner.team_members)) {
+      return [];
+    }
+    
+    return partner.team_members.filter((member: any) => {
+      const role = (member.role || member.tallac_role || '').toString().toLowerCase();
+      return role === 'territory admin' || 
+             role.includes('territory admin') || 
+             role.includes('admin') || 
+             role.includes('owner') || 
+             role.includes('director');
+    }).map((member: any) => ({
+      name: member.name || member.full_name || member.member_name || 'Unknown',
+      role: member.role || member.tallac_role || 'Territory Admin',
+      email: member.email || member.user_email || '',
+      phone: member.phone || ''
+    }));
   }, [partner.team_members]);
 
   const editTeamMember = (member: any) => {
@@ -233,8 +242,8 @@ export default function PartnerDetails({
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
-                  <UserCog className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm font-medium">No territory admins yet</p>
+                  <UserCog className="w-16 h-16 mx-auto mb-3 text-gray-400 opacity-50" />
+                  <p className="text-sm font-medium text-gray-400">No territory admins yet</p>
                 </div>
               )}
             </div>

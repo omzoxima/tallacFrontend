@@ -9,6 +9,7 @@ import UserCard from '@/components/UserCard';
 import UserDetails from '@/components/UserDetails';
 import AddUserModal from '@/components/AddUserModal';
 import AddTelephonyModal from '@/components/AddTelephonyModal';
+import ManageUserTerritoryModal from '@/components/ManageUserTerritoryModal';
 import { X } from 'lucide-react';
 import { showToast } from '@/components/Toast';
 import { useUser } from '@/contexts/UserContext';
@@ -66,6 +67,8 @@ function UsersPageContent() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showAddTelephonyModal, setShowAddTelephonyModal] = useState(false);
+  const [showManageTerritoryModal, setShowManageTerritoryModal] = useState(false);
+  const [userForTerritoryAssignment, setUserForTerritoryAssignment] = useState<User | null>(null);
 
   const isCorporateAdmin = useMemo(() => {
     if (!user || !user.email || user.email === 'Guest') return false;
@@ -234,9 +237,8 @@ function UsersPageContent() {
       showToast('Select a user to assign territories', 'info');
       return;
     }
-    setEditingUser(selectedUser);
-    setShowAddUserModal(true);
-    showToast('Use the Territory section to assign territories to this user.', 'info', 2500);
+    setUserForTerritoryAssignment(selectedUser);
+    setShowManageTerritoryModal(true);
   };
 
   const handleUserModalSuccess = async () => {
@@ -343,7 +345,7 @@ function UsersPageContent() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search users..."
-                    className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
+                    className="bg-gray-700 dark:bg-gray-700 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-200 dark:text-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
                   />
                 </div>
 
@@ -354,7 +356,7 @@ function UsersPageContent() {
                     className={`flex items-center gap-2 px-4 py-2.5 border text-sm font-medium rounded-lg whitespace-nowrap ${
                       hasActiveFilters
                         ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                        : 'border-gray-600 dark:border-gray-600 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700'
                     }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -395,7 +397,7 @@ function UsersPageContent() {
                     <select
                       value={pageSize}
                       onChange={(e) => setPageSize(Number(e.target.value))}
-                      className="w-20 bg-gray-800 border border-gray-600 text-gray-300 text-sm rounded-lg px-3 py-2.5"
+                      className="w-20 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-900 text-sm rounded-lg px-3 py-2.5"
                     >
                       <option value={1000}>1000</option>
                       <option value={500}>500</option>
@@ -421,7 +423,7 @@ function UsersPageContent() {
                     <select
                       value={sortColumn}
                       onChange={(e) => setSortColumn(e.target.value)}
-                      className="w-36 bg-gray-800 border border-gray-600 text-gray-400 text-sm rounded-lg px-3 py-2.5"
+                      className="w-36 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-400 dark:text-gray-400 text-gray-700 text-sm rounded-lg px-3 py-2.5"
                     >
                       <option value="full_name">Name</option>
                       <option value="email">Email</option>
@@ -529,7 +531,7 @@ function UsersPageContent() {
           {/* Active Filters Display */}
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="text-sm text-gray-400 font-medium">Active Filters:</span>
+              <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 font-medium">Active Filters:</span>
               {statusFilter && (
                 <span className="flex items-center gap-1.5 bg-gray-700 text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                   <span>Status: {statusFilter}</span>
@@ -745,6 +747,32 @@ function UsersPageContent() {
             />
           </div>
         </div>
+      )}
+
+      {/* Manage Territories Modal (Vue3-style) */}
+      {showManageTerritoryModal && userForTerritoryAssignment && (
+        <ManageUserTerritoryModal
+          user={userForTerritoryAssignment}
+          onClose={() => {
+            setShowManageTerritoryModal(false);
+            setUserForTerritoryAssignment(null);
+          }}
+          onSuccess={async () => {
+            const updatedList = await fetchUsers();
+            if (updatedList && userForTerritoryAssignment) {
+              const refreshed = updatedList.find(
+                (u) =>
+                  (userForTerritoryAssignment.id && u.id === userForTerritoryAssignment.id) ||
+                  u.email === userForTerritoryAssignment.email
+              );
+              if (refreshed) {
+                openUserDetails(refreshed, detailsViewMode === 'split');
+              }
+            }
+            setShowManageTerritoryModal(false);
+            setUserForTerritoryAssignment(null);
+          }}
+        />
       )}
     </div>
   );

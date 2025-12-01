@@ -1,15 +1,29 @@
 'use client';
 
-import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import AppHeader from '@/components/AppHeader';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import ProspectDetails from '@/components/ProspectDetails';
-import TallacActivityModal from '@/components/TallacActivityModal';
-import AddProspectModal from '@/components/AddProspectModal';
 import Tooltip from '@/components/Tooltip';
 import { Phone, Plus, FileText, X } from 'lucide-react';
 import { showToast } from '@/components/Toast';
+
+// Lazy-loaded heavy components for better initial load performance
+const ProspectDetails = dynamic(() => import('@/components/ProspectDetails'), {
+  ssr: false,
+});
+
+const TallacActivityModal = dynamic(() => import('@/components/TallacActivityModal'), {
+  ssr: false,
+});
+
+const AddProspectModal = dynamic(() => import('@/components/AddProspectModal'), {
+  ssr: false,
+});
+
+// ProspectCard is relatively light but can still benefit from memoization (already wrapped with React.memo)
+import ProspectCard from '@/components/ProspectCard';
 
 interface Prospect {
   id: string;
@@ -58,6 +72,14 @@ function ProspectsPageContent() {
   const [sortColumn, setSortColumn] = useState<'queue' | 'name' | 'status'>('queue');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [pageSize, setPageSize] = useState(25);
+  const [statusCounts, setStatusCounts] = useState({
+    new: 0,
+    contacted: 0,
+    interested: 0,
+    proposal: 0,
+    won: 0,
+    lost: 0,
+  });
   const [detailsViewMode, setDetailsViewMode] = useState<'popup' | 'split'>(
     typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'split' : 'popup'
   );
@@ -66,9 +88,35 @@ function ProspectsPageContent() {
   const [locations, setLocations] = useState<any[]>([]);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
+  // Load status counts once on mount (independent of filters)
+  useEffect(() => {
+    const loadStatusCounts = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${apiUrl}/api/leads/summary`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setStatusCounts((prev) => ({ ...prev, ...data }));
+        }
+      } catch (error) {
+        console.error('Error loading lead status summary:', error);
+      }
+    };
+
+    loadStatusCounts();
+  }, []);
+
+  // Load prospects from server whenever filters/search change.
   useEffect(() => {
     loadProspects();
-  }, []); // Load once on mount - filtering is client-side
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilter, territoryFilter, industryFilter, ownerFilter, searchQuery, pageSize]);
 
   useEffect(() => {
     loadLocations();
@@ -107,10 +155,34 @@ function ProspectsPageContent() {
   const loadProspects = async () => {
     try {
       setLoading(true);
-      // Load ALL prospects (like Vue.js does) - filtering happens client-side
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/api/leads?limit=1000`, {
+
+      const params = new URLSearchParams();
+      // Fetch a limited window from the server; client-side pagination can still slice further
+      params.set('limit', String(pageSize * 3)); // e.g. 75 when pageSize=25
+      params.set('start', '0');
+
+      // Map filters to backend query params where possible
+      if (territoryFilter) {
+        params.set('territory', territoryFilter);
+      }
+      if (industryFilter) {
+        params.set('industry', industryFilter);
+      }
+      if (ownerFilter && ownerFilter !== 'all') {
+        params.set('owner', ownerFilter);
+      }
+      if (searchQuery) {
+        params.set('search_text', searchQuery);
+      }
+      // For pipeline filters, let backend filter by status when it's a specific pipeline status.
+      // Queue/scheduled remain handled client-side based on callback_date/queue_status.
+      if (activeFilter && !['all', 'queue', 'scheduled'].includes(activeFilter)) {
+        params.set('status_filter', activeFilter);
+      }
+
+      const response = await fetch(`${apiUrl}/api/leads?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -139,9 +211,19 @@ function ProspectsPageContent() {
   const loadLocations = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/territories`);
-      const data = await response.json();
-      setLocations(Array.isArray(data) ? data : []);
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`${apiUrl}/api/territories`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        setLocations(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to load locations:', response.status);
+        setLocations([]);
+      }
     } catch (error) {
       console.error('Error loading locations:', error);
       setLocations([]);
@@ -213,37 +295,6 @@ function ProspectsPageContent() {
     };
     return statusMap[status?.toLowerCase()] || 'bg-gray-500 text-white';
   };
-
-  // Status counts computed property (like Vue.js)
-  const statusCounts = useMemo(() => {
-    const counts = {
-      new: 0,
-      contacted: 0,
-      interested: 0,
-      proposal: 0,
-      won: 0,
-      lost: 0,
-    };
-    
-    if (Array.isArray(prospects)) {
-      prospects.forEach((p) => {
-        const status = (p.status || 'new').toLowerCase();
-        // Map database statuses to frontend statuses
-        let mappedStatus = status;
-        if (status === 'closed won') {
-          mappedStatus = 'won';
-        } else if (status === 'closed lost') {
-          mappedStatus = 'lost';
-        }
-        
-        if (mappedStatus in counts) {
-          counts[mappedStatus as keyof typeof counts]++;
-        }
-      });
-    }
-    
-    return counts;
-  }, [prospects]);
 
   const filteredProspects = useMemo(() => {
     let filtered = [...prospects];
@@ -351,27 +402,17 @@ function ProspectsPageContent() {
     return viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1';
   };
 
-  const openProspectDetails = (prospect: Prospect) => {
+  const openProspectDetails = useCallback((prospect: Prospect) => {
     setSelectedProspect(prospect);
     setShowProspectDetails(true);
-  };
+  }, []);
 
-  const closeProspectDetails = () => {
+  const closeProspectDetails = useCallback(() => {
     setShowProspectDetails(false);
     setSelectedProspect(null);
-  };
+  }, []);
 
-  const handleProspectCardClick = (prospect: Prospect) => {
-    // Don't open details when in bulk select mode
-    if (isBulkSelectMode) {
-      // In bulk select mode, clicking the card should toggle selection
-      toggleProspectSelection(prospect.name || prospect.id);
-      return;
-    }
-    openProspectDetails(prospect);
-  };
-
-  const toggleProspectSelection = (prospectName: string) => {
+  const toggleProspectSelection = useCallback((prospectName: string) => {
     if (!prospectName) return;
     setSelectedProspects((prev) => {
       const newSet = new Set(prev);
@@ -382,7 +423,17 @@ function ProspectsPageContent() {
       }
       return newSet;
     });
-  };
+  }, []);
+
+  const handleProspectCardClick = useCallback((prospect: Prospect) => {
+    // Don't open details when in bulk select mode
+    if (isBulkSelectMode) {
+      // In bulk select mode, clicking the card should toggle selection
+      toggleProspectSelection(prospect.name || prospect.id);
+      return;
+    }
+    openProspectDetails(prospect);
+  }, [isBulkSelectMode, toggleProspectSelection, openProspectDetails]);
 
   const isSelected = (prospectName: string) => {
     return selectedProspects.has(prospectName);
@@ -660,14 +711,14 @@ function ProspectsPageContent() {
         <div className="max-w-7xl mx-auto w-full">
           {/* Active Filter Chips Bar (when filters are applied) */}
           {hasActiveFilters && !isBulkSelectMode && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 dark:bg-gray-800 bg-white rounded-lg mb-4 border dark:border-gray-700 border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-gray-800 dark:bg-gray-800 bg-white rounded-lg mb-4 border border-gray-700 dark:border-gray-700 border-gray-200">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium dark:text-gray-400 text-gray-600 mr-2 flex-shrink-0">Active Filters:</span>
+                <span className="text-sm font-medium text-gray-400 dark:text-gray-400 text-gray-600 mr-2 flex-shrink-0">Active Filters:</span>
                 <div className="flex flex-wrap gap-2 items-center">
                   {territoryFilter && (
                     <span className="flex items-center gap-1.5 dark:bg-gray-700 bg-gray-200 text-blue-600 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                       <span>Territory: {locations.find((l) => l.name === territoryFilter)?.territory_name || territoryFilter}</span>
-                      <button onClick={() => setTerritoryFilter('')} className="dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
+                      <button onClick={() => setTerritoryFilter('')} className="text-gray-400 dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
@@ -675,7 +726,7 @@ function ProspectsPageContent() {
                   {industryFilter && (
                     <span className="flex items-center gap-1.5 dark:bg-gray-700 bg-gray-200 text-blue-600 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                       <span>Industry: {industryFilter}</span>
-                      <button onClick={() => setIndustryFilter('')} className="dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
+                      <button onClick={() => setIndustryFilter('')} className="text-gray-400 dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
@@ -683,7 +734,7 @@ function ProspectsPageContent() {
                   {ownerFilter && (
                     <span className="flex items-center gap-1.5 dark:bg-gray-700 bg-gray-200 text-blue-600 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                       <span>Owner: {ownerFilter}</span>
-                      <button onClick={() => setOwnerFilter('')} className="dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
+                      <button onClick={() => setOwnerFilter('')} className="text-gray-400 dark:text-gray-400 text-gray-600 hover:text-gray-900 dark:hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
@@ -698,7 +749,7 @@ function ProspectsPageContent() {
 
           {/* Bulk Action Bar (when in selection mode) */}
           {isBulkSelectMode && (
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 dark:bg-gray-800 bg-white rounded-lg shadow-lg mb-4 border dark:border-gray-700 border-gray-200">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg mb-4 border border-gray-700 dark:border-gray-700 border-gray-200">
               <div className="flex items-center gap-4 w-full md:w-auto">
                 <input
                   type="checkbox"
@@ -706,10 +757,10 @@ function ProspectsPageContent() {
                   onChange={toggleSelectAll}
                   className="h-5 w-5 rounded bg-gray-600 border-gray-500 text-blue-500 focus:ring-blue-600"
                 />
-                <label onClick={toggleSelectAll} className="text-sm font-medium dark:text-white text-gray-900 cursor-pointer">
+                <label onClick={toggleSelectAll} className="text-sm font-medium text-white dark:text-white text-gray-900 cursor-pointer">
                   Select All (Visible)
                 </label>
-                <span className="text-sm dark:text-gray-300 text-gray-700">
+                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">
                   {selectedProspects.size} item{selectedProspects.size !== 1 ? 's' : ''} selected
                 </span>
                 <button onClick={clearSelection} className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
@@ -724,7 +775,7 @@ function ProspectsPageContent() {
                     }
                   }}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 border dark:border-gray-500 border-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.987 6.987 0 0010 16.5a6.987 6.987 0 004.793-2.11A5.99 5.99 0 0010 12z" clipRule="evenodd" />
@@ -738,7 +789,7 @@ function ProspectsPageContent() {
                     }
                   }}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 border dark:border-gray-500 border-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-3.5-5 3.5V4z" />
@@ -776,7 +827,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={() => setActiveFilter('queue')}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
+                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700'
                   }`}
                 >
                   Queue
@@ -792,7 +843,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={() => setActiveFilter('scheduled')}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
+                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700'
                   }`}
                 >
                   Scheduled
@@ -808,7 +859,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={() => setActiveFilter('all')}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'all' ? 'bg-blue-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
+                    activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700'
                   }`}
                 >
                   All
@@ -821,7 +872,7 @@ function ProspectsPageContent() {
               </div>
 
               {/* Pipeline Status Bar - Compact on Mobile */}
-              <div className="flex h-8 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="flex h-8 bg-gray-700/50 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
                 {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
                   const count = statusCounts[status as keyof typeof statusCounts] || 0;
                   const statusColors: Record<string, string> = {
@@ -838,7 +889,7 @@ function ProspectsPageContent() {
                       key={status}
                       onClick={() => setActiveFilter(status)}
                       className={`flex-1 flex items-center justify-center gap-1 px-1 py-1 text-xs font-semibold text-white transition-all ${
-                        activeFilter === status ? badgeColor : 'dark:bg-gray-700 bg-gray-200 dark:hover:bg-gray-600 hover:bg-gray-300'
+                        activeFilter === status ? badgeColor : 'bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300'
                       }`}
                       title={`${status.charAt(0).toUpperCase() + status.slice(1)}: ${count}`}
                     >
@@ -888,7 +939,7 @@ function ProspectsPageContent() {
               </button>
 
               {/* Proportional Pipeline Bar */}
-              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 bg-gray-700/50 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
                 {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
                   const count = statusCounts[status as keyof typeof statusCounts] || 0;
                   const statusColors: Record<string, string> = {
@@ -1196,9 +1247,9 @@ function ProspectsPageContent() {
                     <div
                       key={prospect.id || prospect.name}
                       onClick={() => handleProspectCardClick(prospect)}
-                      className={`dark:bg-gray-800 bg-white rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
+                      className={`bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
                         getCardBorderClass(prospect.status)
-                      } ${isSelected(prospect.name || prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'dark:border-gray-700 border-gray-200'} ${
+                      } ${isSelected(prospect.name || prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'} ${
                         selectedProspect?.name === prospect.name && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-green-500 border-green-500' : ''
                       }`}
                     >
@@ -1220,14 +1271,14 @@ function ProspectsPageContent() {
 
                       <div className="p-4">
                         <div className="flex justify-between items-start">
-                          <h4 className="text-lg font-bold dark:text-white text-gray-900 truncate pr-2">
+                          <h4 className="text-lg font-bold text-white dark:text-white text-gray-900 truncate pr-2">
                             {prospect.company_name || 'No Company'}
                           </h4>
                           <span className={`flex-shrink-0 text-xs font-medium px-2.5 py-0.5 rounded-full ${getStatusBadgeClass(prospect.status)}`}>
                             {getStatusLabel(prospect.status)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center mt-2 text-xs dark:text-gray-400 text-gray-600">
+                        <div className="flex justify-between items-center mt-2 text-xs text-gray-400 dark:text-gray-400 text-gray-600">
                           {prospect.city && (
                             <p className="flex items-center">
                               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1251,15 +1302,15 @@ function ProspectsPageContent() {
                         </div>
                       </div>
 
-                      <div className="px-4 pb-4 border-b dark:border-gray-700 border-gray-200 space-y-3">
+                      <div className="px-4 pb-4 border-b border-gray-700 dark:border-gray-700 border-gray-200 space-y-3">
                         <div className="flex justify-between items-start">
                           <div className="flex items-start">
                             <svg className="w-4 h-4 dark:text-gray-400 text-gray-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
                             <div className="ml-1.5">
-                              <p className="text-base font-medium dark:text-white text-gray-900">{prospect.lead_name || 'No Contact'}</p>
-                              <p className="text-sm dark:text-gray-400 text-gray-600">{prospect.title || 'Contact'}</p>
+                              <p className="text-base font-medium text-white dark:text-white text-gray-900">{prospect.lead_name || 'No Contact'}</p>
+                              <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">{prospect.title || 'Contact'}</p>
                             </div>
                           </div>
                           {prospect.contact_path && prospect.contact_path.length > 0 && (
@@ -1291,7 +1342,7 @@ function ProspectsPageContent() {
                         )}
                       </div>
 
-                      <div className="p-2 dark:bg-gray-900/50 bg-gray-50/50 backdrop-blur-sm border-t dark:border-gray-700/50 border-gray-200/50 mt-auto">
+                      <div className="p-2 bg-gray-900/50 dark:bg-gray-900/50 bg-gray-50/50 backdrop-blur-sm border-t border-gray-700/50 dark:border-gray-700/50 border-gray-200/50 mt-auto">
                         <div className="grid grid-cols-3 gap-1">
                           <Tooltip text="Log Call">
                             <button
@@ -1364,10 +1415,10 @@ function ProspectsPageContent() {
       {/* Prospect Detail Modal (for popup mode) */}
       {showProspectDetails && detailsViewMode === 'popup' && selectedProspect && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
           onClick={closeProspectDetails}
         >
-          <div className="w-full max-w-4xl h-[90vh] shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl my-4" onClick={(e) => e.stopPropagation()}>
             <ProspectDetails
               prospect={selectedProspect}
               mode="popup"

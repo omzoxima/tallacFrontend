@@ -63,16 +63,21 @@ body {
 .dark .bg-gray-900 { background-color: rgb(23 23 23) !important; }
 .dark .bg-gray-800 { background-color: #383838 !important; }
 .dark .border-gray-700 { border-color: #525252 !important; }
-.dark .bg-gray-700 { background-color: #1f2435 !important; }
-.dark .border-gray-600 { border-color: #343c52 !important; }
+.dark .bg-gray-700 { background-color: #525252 !important; }
+.dark .border-gray-600 { border-color: rgb(124 124 124) !important; }
 .dark .text-gray-300 { color: rgb(226 226 226) !important; }
+
+/* Global border-gray-600 override - all elements with border-gray-600 will use rgb(124 124 124) */
+.border-gray-600 {
+  border-color: rgb(124 124 124) !important;
+}
 
 /* Light mode overrides */
 :root:not(.dark) .bg-gray-900 { background-color: #f8fafc !important; }
 :root:not(.dark) .bg-gray-800 { background-color: #ffffff !important; }
 :root:not(.dark) .border-gray-700 { border-color: #d9dee8 !important; }
 :root:not(.dark) .bg-gray-700 { background-color: #eef1f7 !important; }
-:root:not(.dark) .border-gray-600 { border-color: #cbd5f5 !important; }
+:root:not(.dark) .border-gray-600 { border-color: rgb(124 124 124) !important; }
 
 /* Header should always be in light mode */
 header,

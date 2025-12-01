@@ -313,7 +313,7 @@ function TerritoriesPageContent() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search territories, regions, states..."
-                    className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
+                    className="bg-gray-700 dark:bg-gray-700 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-200 dark:text-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
                   />
                 </div>
 
@@ -324,7 +324,7 @@ function TerritoriesPageContent() {
                     className={`flex items-center gap-2 px-4 py-2.5 border text-sm font-medium rounded-lg whitespace-nowrap ${
                       hasActiveFilters
                         ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                        : 'border-gray-600 dark:border-gray-600 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700'
                     }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -358,7 +358,7 @@ function TerritoriesPageContent() {
                     <select
                       value={pageSize}
                       onChange={(e) => setPageSize(Number(e.target.value))}
-                      className="w-20 bg-gray-800 border border-gray-600 text-gray-300 text-sm rounded-lg px-3 py-2.5"
+                      className="w-20 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-900 text-sm rounded-lg px-3 py-2.5"
                     >
                       <option value={25}>25</option>
                       <option value={50}>50</option>
@@ -385,7 +385,7 @@ function TerritoriesPageContent() {
                     <select
                       value={sortColumn}
                       onChange={(e) => setSortColumn(e.target.value)}
-                      className="w-36 bg-gray-800 border border-gray-600 text-gray-400 text-sm rounded-lg px-3 py-2.5"
+                      className="w-36 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-400 dark:text-gray-400 text-gray-700 text-sm rounded-lg px-3 py-2.5"
                     >
                       <option value="name">Territory Name</option>
                       <option value="code">Territory Code</option>

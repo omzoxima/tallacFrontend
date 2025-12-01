@@ -63,6 +63,7 @@ export default function AddUserModal({ onClose, onSuccess, editUser, availableTe
   const [successMessage, setSuccessMessage] = useState('');
   const [territories, setTerritories] = useState<any[]>([]);
   const [loadingTerritories, setLoadingTerritories] = useState(false);
+  const [territorySearch, setTerritorySearch] = useState('');
 
   const territoriesLoadedRef = useRef(false);
 
@@ -391,13 +392,63 @@ export default function AddUserModal({ onClose, onSuccess, editUser, availableTe
 
               <div className="space-y-3">
                 <p className="text-sm text-gray-400 mb-3">Select territories to assign:</p>
+                
+                {/* Search Input */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                  </div>
+                  <input
+                    type="search"
+                    value={territorySearch}
+                    onChange={(e) => setTerritorySearch(e.target.value)}
+                    placeholder="Start typing to search territories (name, code, state, region)..."
+                    className="w-full bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block pl-10 pr-3 py-2 placeholder-gray-500"
+                  />
+                </div>
+
                 {loadingTerritories ? (
                   <div className="text-center py-8 text-gray-400">
                     <div className="w-8 h-8 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
                     Loading territories...
                   </div>
-                ) : territories.length > 0 ? (
-                  territories.map((territory) => {
+                ) : (() => {
+                  // Filter territories based on search
+                  const query = territorySearch.trim().toLowerCase();
+                  const filtered = territories.filter((territory) => {
+                    if (!query) return true; // Show all if no search
+                    return (
+                      territory.territory_name?.toLowerCase().includes(query) ||
+                      territory.territory_code?.toLowerCase().includes(query) ||
+                      territory.territory_state?.toLowerCase().includes(query) ||
+                      territory.territory_region?.toLowerCase().includes(query)
+                    );
+                  });
+
+                  // If no search, show only first 2
+                  const displayTerritories = query ? filtered : filtered.slice(0, 2);
+
+                  if (displayTerritories.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-400">
+                        {query ? (
+                          <>
+                            <p className="text-sm font-semibold mb-1">No territories found</p>
+                            <p className="text-xs text-gray-500">Try adjusting your search</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold mb-1">Start typing to search territories</p>
+                            <p className="text-xs text-gray-500">Type territory name, code, state, or region to find territories</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return displayTerritories.map((territory) => {
                     const territoryId = territory.id || territory.name;
                     const isSelected = selectedTerritories.has(territoryId);
                     return (
@@ -450,10 +501,8 @@ export default function AddUserModal({ onClose, onSuccess, editUser, availableTe
                         </div>
                       </div>
                     );
-                  })
-                ) : (
-                  <p className="text-sm text-gray-400 text-center py-4">No territories available</p>
-                )}
+                  });
+                })()}
               </div>
             </div>
           )}

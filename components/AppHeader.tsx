@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun, Menu, X } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import { getVisibleNavItems } from '@/utils/permissions';
+import ActiveCallCard from './ActiveCallCard';
+import RecordCallOutcomeModal from './RecordCallOutcomeModal';
 
 export default function AppHeader() {
   const pathname = usePathname();
@@ -130,6 +132,9 @@ export default function AppHeader() {
 
           {/* User Menu - Right Side */}
           <div className="flex items-center gap-4">
+            {/* Active call pill (if any) */}
+            <ActiveCallCard />
+
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -173,6 +178,9 @@ export default function AppHeader() {
             </div>
           </div>
         </div>
+
+        {/* Global Call Outcome Modal */}
+        <RecordCallOutcomeModal />
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (

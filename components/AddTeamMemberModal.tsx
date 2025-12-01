@@ -66,6 +66,7 @@ export default function AddTeamMemberModal({
   const [selectedTerritories, setSelectedTerritories] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [territorySearch, setTerritorySearch] = useState('');
 
   const roleMeta = useMemo(
     () => ROLE_OPTIONS.find((option) => option.value === formData.role) ?? ROLE_OPTIONS[0],
@@ -162,8 +163,60 @@ export default function AddTeamMemberModal({
           Territory Assignment
         </h3>
         <p className="text-sm text-gray-400">Select territories to associate with this team member.</p>
+        
+        {/* Search Input */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+          <input
+            type="search"
+            value={territorySearch}
+            onChange={(e) => setTerritorySearch(e.target.value)}
+            placeholder="Start typing to search territories (name, code, state, region)..."
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 pl-10 text-sm text-white placeholder-gray-500 focus:ring-purple-500 focus:border-purple-500"
+          />
+        </div>
+
         <div className="space-y-3">
-          {partnerTerritories.map((territory, index) => {
+          {(() => {
+            // Filter territories based on search
+            const query = territorySearch.trim().toLowerCase();
+            const filtered = partnerTerritories.filter((territory) => {
+              if (!query) return true; // Show all if no search
+              return (
+                territory.territory_name?.toLowerCase().includes(query) ||
+                territory.territory_code?.toLowerCase().includes(query) ||
+                territory.territory_state?.toLowerCase().includes(query) ||
+                territory.territory_region?.toLowerCase().includes(query) ||
+                territory.territory_dba?.toLowerCase().includes(query)
+              );
+            });
+
+            // If no search, show only first 2
+            const displayTerritories = query ? filtered : filtered.slice(0, 2);
+
+            if (displayTerritories.length === 0) {
+              return (
+                <div className="text-center py-8 text-gray-400">
+                  {query ? (
+                    <>
+                      <p className="text-sm font-semibold mb-1">No territories found</p>
+                      <p className="text-xs text-gray-500">Try adjusting your search</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold mb-1">Start typing to search territories</p>
+                      <p className="text-xs text-gray-500">Type territory name, code, state, or region to find territories</p>
+                    </>
+                  )}
+                </div>
+              );
+            }
+
+            return displayTerritories.map((territory, index) => {
             const territoryId = territory.territory || territory.name || territory.territory_name || `${index}`;
             const isSelected = selectedTerritories.has(territoryId);
             return (
@@ -217,7 +270,8 @@ export default function AddTeamMemberModal({
                 </div>
               </button>
             );
-          })}
+          });
+          })()}
         </div>
       </div>
     );

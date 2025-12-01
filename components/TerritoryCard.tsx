@@ -48,15 +48,15 @@ export default function TerritoryCard({
     return (
       <div
         onClick={onClick}
-        className={`bg-gray-800 rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl border-2 cursor-pointer p-4 grid gap-6 items-center ${
+        className={`bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl border-2 cursor-pointer p-4 grid gap-6 items-center ${
           getStatusBorderClass(territory.territory_status || territory.status || 'Active')
-        } ${isSelected ? 'ring-2 ring-green-500 border-green-500' : 'border-gray-700'}`}
+        } ${isSelected ? 'ring-2 ring-green-500 border-green-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'}`}
         style={{ gridTemplateColumns: '2fr 1fr 2fr 1fr' }}
       >
         {/* Column 1: Territory Name + Code, DBA */}
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="text-base font-bold text-white truncate">{territory.territory_name || territory.name || 'Unknown Territory'}</h4>
+            <h4 className="text-base font-bold text-white dark:text-white text-gray-900 truncate">{territory.territory_name || territory.name || 'Unknown Territory'}</h4>
             {territory.territory_code && (
               <span className="text-xs font-mono text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded flex-shrink-0">
                 {territory.territory_code}
@@ -64,7 +64,7 @@ export default function TerritoryCard({
             )}
           </div>
           {(territory.territory_dba || territory.doing_business_as) && (
-            <p className="text-sm text-gray-400 truncate">{territory.territory_dba || territory.doing_business_as}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 truncate">{territory.territory_dba || territory.doing_business_as}</p>
           )}
         </div>
 

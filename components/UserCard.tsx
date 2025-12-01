@@ -56,9 +56,9 @@ export default function UserCard({
     return (
       <div
         onClick={onClick}
-        className={`bg-gray-800 rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl border-2 cursor-pointer p-4 grid gap-4 items-center ${
+        className={`bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl border-2 cursor-pointer p-4 grid gap-4 items-center ${
           getStatusBorderClass(user.status)
-        } ${isSelected ? 'ring-2 ring-green-500 border-green-500' : 'border-gray-700'}`}
+        } ${isSelected ? 'ring-2 ring-green-500 border-green-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'}`}
         style={{ gridTemplateColumns: '2.5fr 1fr 0.8fr' }}
       >
         {/* Column 1: User Info */}
@@ -67,10 +67,10 @@ export default function UserCard({
             {getInitials(user.full_name || user.name || user.email)}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-base font-bold text-white truncate">
+            <h4 className="text-base font-bold text-white dark:text-white text-gray-900 truncate">
               {user.full_name || user.name || user.email || 'Unknown'}
             </h4>
-            <p className="text-sm text-gray-400 truncate">{user.email || 'No email'}</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 truncate">{user.email || 'No email'}</p>
             {user.tallac_role && (
               <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${getRoleBadgeClass(user.tallac_role)}`}>
                 {user.tallac_role}
@@ -81,8 +81,8 @@ export default function UserCard({
 
         {/* Column 2: Territory Count */}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white mb-1">{user.territory_count || 0}</p>
-          <p className="text-xs text-gray-400 truncate">
+          <p className="text-sm font-semibold text-white dark:text-white text-gray-900 mb-1">{user.territory_count || 0}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400 text-gray-600 truncate">
             {user.territory_count === 1 ? 'Territory' : 'Territories'}
           </p>
         </div>

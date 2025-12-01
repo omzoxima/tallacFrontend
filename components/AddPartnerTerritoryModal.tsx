@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Map, MapPin, X } from 'lucide-react';
+import { Map, MapPin, Globe, Search, X } from 'lucide-react';
 import { showToast } from './Toast';
 
 type Territory = {
@@ -9,6 +9,7 @@ type Territory = {
   name: string;
   territory_name: string;
   territory_code?: string;
+  territory_dba?: string;
   territory_state?: string;
   territory_region?: string;
   territory_status?: string;
@@ -58,6 +59,14 @@ export default function AddPartnerTerritoryModal({
     );
   }, [existingTerritories]);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   useEffect(() => {
     const fetchTerritories = async () => {
       try {
@@ -82,10 +91,11 @@ export default function AddPartnerTerritoryModal({
           name: item.name,
           territory_name: item.territory_name,
           territory_code: item.territory_code,
+          territory_dba: item.territory_dba || item.doing_business_as,
           territory_state: item.territory_state,
           territory_region: item.territory_region,
-          territory_status: item.territory_status,
-          zipcode_count: item.zipcode_count,
+          territory_status: item.territory_status || item.status,
+          zipcode_count: item.zipcode_count || (item.zip_codes ? item.zip_codes.length : 0),
         }));
 
         setTerritories(normalized.filter((territory) => Boolean(territory.id)));
@@ -102,14 +112,24 @@ export default function AddPartnerTerritoryModal({
 
   const filteredTerritories = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return territories.filter((territory) => {
+    const available = territories.filter((territory) => {
       if (territory.id && excludedIds.has(territory.id)) {
         return false;
       }
-      if (!query) return true;
+      return true;
+    });
+
+    // If no search query, show only first 2 territories
+    if (!query) {
+      return available.slice(0, 2);
+    }
+
+    // If search query exists, filter and show all matching results
+    return available.filter((territory) => {
       return (
         territory.territory_name?.toLowerCase().includes(query) ||
         territory.territory_code?.toLowerCase().includes(query) ||
+        territory.territory_dba?.toLowerCase().includes(query) ||
         territory.territory_state?.toLowerCase().includes(query) ||
         territory.territory_region?.toLowerCase().includes(query)
       );
@@ -165,39 +185,49 @@ export default function AddPartnerTerritoryModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[130] flex items-center justify-center px-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4 overflow-hidden"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Add territories</p>
-            <h2 className="text-xl font-semibold text-white">Assign coverage to {partnerName}</h2>
+            <h2 className="text-2xl font-bold text-white">Add Territories to Partner</h2>
+            <p className="text-sm text-gray-400 mt-1">Assign territories to {partnerName}</p>
           </div>
           <button
-            className="text-gray-400 hover:text-white transition-colors rounded-lg p-2 hover:bg-gray-800"
+            className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
             onClick={onClose}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-6 py-4 border-b border-gray-800">
-          <div className="relative flex items-center">
+        {/* Search Bar */}
+        <div className="p-6 border-b border-gray-700">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Search className="w-4 h-4 text-gray-400" />
+            </div>
             <input
               type="search"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Search by territory name, code, state or region"
+              className="w-full bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block py-2.5 pl-10 pr-3 placeholder-gray-400"
+              placeholder="Search territories..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {selectedIds.size > 0 && (
-            <p className="text-xs text-blue-300 mt-2">
-              {selectedIds.size} {selectedIds.size === 1 ? 'territory selected' : 'territories selected'}
-            </p>
-          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3" style={{ maxHeight: 'calc(90vh - 200px)' }}>
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <div className="w-10 h-10 border-4 border-gray-700 border-t-blue-500 rounded-full animate-spin mb-4" />
@@ -211,95 +241,142 @@ export default function AddPartnerTerritoryModal({
             </div>
           )}
 
-          {!loading && !error && filteredTerritories.length === 0 && (
+          {!loading && !error && filteredTerritories.length === 0 && search.trim() && (
             <div className="text-center py-16 text-gray-400">
               <p className="text-lg font-semibold">No territories found</p>
               <p className="text-sm text-gray-500">Try adjusting your search</p>
             </div>
           )}
 
+          {!loading && !error && filteredTerritories.length === 0 && !search.trim() && (
+            <div className="text-center py-16 text-gray-400">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              <p className="text-lg font-semibold mb-2">Start typing to search territories</p>
+              <p className="text-sm text-gray-500">Type territory name, code, state, or region to find and select territories</p>
+            </div>
+          )}
+
           {!loading && !error && filteredTerritories.map((territory) => {
             const isSelected = territory.id ? selectedIds.has(territory.id) : false;
             return (
-              <button
+              <div
                 key={territory.id}
-                type="button"
                 onClick={() => territory.id && toggleSelect(territory.id)}
-                className={`w-full text-left rounded-xl border-2 transition-all duration-200 px-4 py-3 bg-gray-800/70 hover:bg-gray-800 ${
-                  isSelected ? 'border-blue-500' : 'border-transparent hover:border-blue-500/40'
+                className={`rounded-lg border-2 transition-all duration-200 cursor-pointer ${
+                  isSelected 
+                    ? 'border-purple-500 bg-gray-800' 
+                    : 'border-transparent bg-gray-800/50 hover:border-purple-500/50'
                 }`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-base font-semibold text-white truncate">{territory.territory_name}</p>
-                    {territory.territory_code && (
-                      <p className="text-xs text-gray-400 mt-0.5">Code: {territory.territory_code}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {territory.territory_status && (
-                      <span className={`px-3 py-1 text-xs rounded-full ${STATUS_CLASSES[territory.territory_status] || 'border border-gray-600 text-gray-300'}`}>
-                        {territory.territory_status}
-                      </span>
-                    )}
-                    <div
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                        isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-500'
-                      }`}
-                    >
-                      {isSelected && '✓'}
+                <div className="p-4">
+                  {/* Row 1: Name, Code, Status, Checkbox */}
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <h4 className="text-base font-bold text-white truncate">{territory.territory_name}</h4>
+                      {territory.territory_code && (
+                        <span className="text-xs font-mono text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded flex-shrink-0">
+                          {territory.territory_code}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {territory.territory_status && (
+                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                          territory.territory_status === 'Active' 
+                            ? 'bg-green-600 text-white'
+                            : territory.territory_status === 'Pending'
+                            ? 'bg-yellow-600 text-white'
+                            : territory.territory_status === 'Inactive'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-gray-500 text-white'
+                        }`}>
+                          {territory.territory_status}
+                        </span>
+                      )}
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        isSelected
+                          ? 'bg-purple-600 border-purple-600'
+                          : 'border-gray-500 bg-gray-700'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                          </svg>
+                        )}
+                      </div>
                     </div>
                   </div>
+                  
+                  {/* Row 2: Description/DBA */}
+                  {territory.territory_dba && (
+                    <p className="text-sm text-gray-400 mb-2">{territory.territory_dba}</p>
+                  )}
+                  
+                  {/* Row 3: State, Region, Zipcodes */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {territory.territory_state && (
+                      <span className="flex items-center gap-1 text-gray-300">
+                        <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                        {territory.territory_state}
+                      </span>
+                    )}
+                    {territory.territory_state && territory.territory_region && (
+                      <span className="text-gray-500">•</span>
+                    )}
+                    {territory.territory_region && (
+                      <span className="flex items-center gap-1 text-gray-300">
+                        <Globe className="w-3.5 h-3.5 text-green-400" />
+                        {territory.territory_region}
+                      </span>
+                    )}
+                    {(territory.territory_state || territory.territory_region) && territory.zipcode_count && (
+                      <span className="text-gray-500">•</span>
+                    )}
+                    {typeof territory.zipcode_count === 'number' && territory.zipcode_count > 0 && (
+                      <span className="flex items-center gap-1 text-gray-300">
+                        <Map className="w-3.5 h-3.5 text-purple-400" />
+                        {territory.zipcode_count} Zipcodes
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-gray-300">
-                  {territory.territory_state && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                      {territory.territory_state}
-                    </span>
-                  )}
-                  {territory.territory_region && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-green-400" />
-                      {territory.territory_region}
-                    </span>
-                  )}
-                  {typeof territory.zipcode_count === 'number' && (
-                    <span className="flex items-center gap-1">
-                      <Map className="w-3.5 h-3.5 text-purple-400" />
-                      {territory.zipcode_count} Zipcodes
-                    </span>
-                  )}
-                </div>
-              </button>
+              </div>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-800 bg-gray-900">
-          <div className="text-sm text-gray-400">
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700 bg-gray-800">
+          <div className="text-sm text-gray-400 flex-1">
             {selectedIds.size === 0
               ? 'Select territories to assign'
               : `${selectedIds.size} ${selectedIds.size === 1 ? 'territory' : 'territories'} selected`}
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving || selectedIds.size === 0}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50"
-            >
-              {saving ? 'Adding...' : 'Add Territories'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || selectedIds.size === 0}
+            className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Adding...
+              </>
+            ) : (
+              `Add ${selectedIds.size} ${selectedIds.size === 1 ? 'Territory' : 'Territories'}`
+            )}
+          </button>
         </div>
       </div>
     </div>

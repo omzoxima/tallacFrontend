@@ -280,7 +280,7 @@ function PartnersPageContent() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search partners..."
-                    className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
+                    className="bg-gray-700 dark:bg-gray-700 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-200 dark:text-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
                   />
                 </div>
 
@@ -291,7 +291,7 @@ function PartnersPageContent() {
                     className={`flex items-center gap-2 px-4 py-2.5 border text-sm font-medium rounded-lg whitespace-nowrap ${
                       hasActiveFilters
                         ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                        : 'border-gray-600 dark:border-gray-600 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700'
                     }`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -329,7 +329,7 @@ function PartnersPageContent() {
                     <select
                       value={pageSize}
                       onChange={(e) => setPageSize(Number(e.target.value))}
-                      className="w-20 bg-gray-800 border border-gray-600 text-gray-300 text-sm rounded-lg px-3 py-2.5"
+                      className="w-20 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-900 text-sm rounded-lg px-3 py-2.5"
                     >
                       <option value={1000}>1000</option>
                       <option value={500}>500</option>
@@ -355,7 +355,7 @@ function PartnersPageContent() {
                     <select
                       value={sortColumn}
                       onChange={(e) => setSortColumn(e.target.value)}
-                      className="w-36 bg-gray-800 border border-gray-600 text-gray-400 text-sm rounded-lg px-3 py-2.5"
+                      className="w-36 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-400 dark:text-gray-400 text-gray-700 text-sm rounded-lg px-3 py-2.5"
                     >
                       <option value="partner_name">Partner Name</option>
                       <option value="partner_code">Partner Code</option>
@@ -386,7 +386,7 @@ function PartnersPageContent() {
                   <Tooltip text={viewMode === 'card' ? 'Switch to List View' : 'Switch to Card View'}>
                     <button
                       onClick={toggleLayoutMode}
-                      className="flex items-center justify-center p-2.5 bg-gray-700 hover:bg-gray-600 text-white"
+                      className="flex items-center justify-center p-2.5 bg-gray-700 dark:bg-gray-700 bg-gray-100 hover:bg-gray-600 dark:hover:bg-gray-600 text-white dark:text-white text-gray-900"
                     >
                       {viewMode === 'list' ? (
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -473,16 +473,16 @@ function PartnersPageContent() {
           {/* Active Filters Display */}
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="text-sm text-gray-400 font-medium">Active Filters:</span>
+              <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 font-medium">Active Filters:</span>
               {statusFilter && (
                 <span className="flex items-center gap-1.5 bg-gray-700 text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">
                   <span>Status: {statusFilter}</span>
-                  <button onClick={() => setStatusFilter('')} className="text-gray-400 hover:text-white">
+                  <button onClick={() => setStatusFilter('')} className="text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </span>
               )}
-              <button onClick={clearAllFilters} className="text-xs text-gray-400 hover:text-white underline">
+              <button onClick={clearAllFilters} className="text-xs text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white underline">
                 Clear All
               </button>
             </div>
@@ -494,15 +494,15 @@ function PartnersPageContent() {
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <div className="spinner w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                  <p className="text-gray-400">Loading partners...</p>
+                  <p className="text-gray-400 dark:text-gray-400 text-gray-600">Loading partners...</p>
                 </div>
               ) : paginatedPartners.length === 0 ? (
                 <div className="text-center py-20">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                   </svg>
-                  <p className="text-xl text-gray-400 mb-2">No partners found</p>
-                  <p className="text-gray-500">Try adjusting your search or filters</p>
+                  <p className="text-xl font-semibold text-white dark:text-white text-gray-900 mb-2">No partners found</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">Try adjusting your search or filters</p>
                 </div>
               ) : (
                 <div className={viewMode === 'card' ? `grid ${getPartnerGridClass()} gap-4` : 'space-y-2'}>
