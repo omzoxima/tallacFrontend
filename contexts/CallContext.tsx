@@ -8,6 +8,7 @@ interface CallState {
   currentCall: {
     prospectId: string;
     prospectName: string;
+    companyName?: string;
     phoneNumber: string;
     callLogId?: string;
     startedAt: number;
@@ -37,7 +38,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
       showOutcomeModal: false,
       currentCall: {
         prospectId: prospect.name || prospect.id,
-        prospectName: prospect.company_name || prospect.lead_name || 'Unknown',
+        // Use contact/lead name as primary display name, fall back to company
+        prospectName: prospect.lead_name || prospect.company_name || 'Unknown',
+        companyName: prospect.company_name || undefined,
         phoneNumber,
         callLogId,
         startedAt: Date.now(),

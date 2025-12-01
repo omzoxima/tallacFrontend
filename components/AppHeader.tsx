@@ -15,11 +15,6 @@ export default function AppHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useUser();
   const visibleNavItems = getVisibleNavItems(user?.role);
-  
-  // Debug logging (remove in production)
-  useEffect(() => {
-    // User and navigation items are ready
-  }, [user, visibleNavItems]);
 
   const handleLogout = async () => {
     try {
@@ -110,19 +105,28 @@ export default function AppHeader() {
 
             {/* Navigation - Desktop Only */}
             <nav className="hidden md:flex items-center gap-2">
-              {visibleNavItems.map((item) => (
-                <Link
-                  key={item.route}
-                  href={item.route}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    pathname === item.route
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
+              {visibleNavItems.map((item) => {
+                const isActive = item.route === '/' 
+                  ? pathname === '/' 
+                  : pathname === item.route || pathname.startsWith(item.route + '/');
+                return (
+                  <Link
+                    key={item.route}
+                    href={item.route}
+                    className={`relative px-4 py-2 rounded-md text-sm font-medium transition-all nav-link ${
+                      isActive
+                        ? 'nav-link-active !text-white font-semibold shadow-md'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                    style={isActive ? { backgroundColor: '#525252', color: '#ffffff' } : undefined}
+                  >
+                    {item.name}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-1.5 rounded-full z-10 shadow-sm" style={{ backgroundColor: '#22c55e' }} />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
 
@@ -130,7 +134,6 @@ export default function AppHeader() {
           <div className="flex items-center gap-4">
             {/* Active call pill (if any) */}
             <ActiveCallCard />
-
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -182,19 +185,28 @@ export default function AppHeader() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white">
             <nav className="px-4 py-3 space-y-1">
-              {visibleNavItems.map((item) => (
-                <Link
-                  key={item.route}
-                  href={item.route}
-                  className={`block px-4 py-3 rounded-md text-base font-medium transition-all ${
-                    pathname === item.route
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
+              {visibleNavItems.map((item) => {
+                const isActive = item.route === '/' 
+                  ? pathname === '/' 
+                  : pathname === item.route || pathname.startsWith(item.route + '/');
+                return (
+                  <Link
+                    key={item.route}
+                    href={item.route}
+                    className={`relative block px-4 py-3 rounded-md text-base font-medium transition-all nav-link ${
+                      isActive
+                        ? 'nav-link-active !text-white font-semibold shadow-md'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                    style={isActive ? { backgroundColor: '#525252', color: '#ffffff' } : undefined}
+                  >
+                    {item.name}
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 transform -translate-y-1/2 w-2 h-12 rounded-r-full z-10 shadow-sm" style={{ backgroundColor: '#22c55e' }} />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         )}

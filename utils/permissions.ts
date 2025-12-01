@@ -118,13 +118,8 @@ export function getVisibleNavItems(userRole: Role | string | null | undefined) {
   const items: Array<{ name: string; route: string; icon: string }> = [];
   
   if (!userRole) {
-    console.warn('getVisibleNavItems: No user role provided');
-    return items; // Return empty if no role
+    return items;
   }
-  
-  // Normalize role name for comparison
-  const normalizedRole = String(userRole).trim();
-  console.log('getVisibleNavItems - Checking role:', normalizedRole);
   
   if (canAccess(userRole, 'canViewDashboard')) {
     items.push({ name: 'Dashboard', route: '/', icon: 'dashboard' });
@@ -138,31 +133,20 @@ export function getVisibleNavItems(userRole: Role | string | null | undefined) {
     items.push({ name: 'Activities', route: '/activities', icon: 'activities' });
   }
   
-  // Territories tab - visible to users who can view territories
-  const canViewTerritories = canAccess(userRole, 'canViewTerritories');
-  console.log('getVisibleNavItems - canViewTerritories:', canViewTerritories);
-  if (canViewTerritories) {
-    items.push({ name: 'Territories', route: '/territories', icon: 'location' });
+  if (canAccess(userRole, 'canViewTerritories')) {
+    items.push({ name: 'Territories', route: '/territories', icon: 'territories' });
   }
   
-  // Partners tab - visible to users who can view partners
   if (canAccess(userRole, 'canViewPartners')) {
-    items.push({ name: 'Partners', route: '/partners', icon: 'company' });
+    items.push({ name: 'Partners', route: '/partners', icon: 'partners' });
   }
   
-  // Users tab - visible to users who can view users
-  const canViewUsers = canAccess(userRole, 'canViewUsers');
-  console.log('getVisibleNavItems - canViewUsers:', canViewUsers);
-  if (canViewUsers) {
-    items.push({ name: 'Users', route: '/users', icon: 'team' });
+  if (canAccess(userRole, 'canViewUsers')) {
+    items.push({ name: 'Users', route: '/users', icon: 'users' });
   }
   
-  // Removed legacy routes: Team, Location, Company
-  
-  // Knowledge Base tab - visible to ALL users (all roles)
   items.push({ name: 'Knowledge Base', route: '/knowledge-base', icon: 'knowledge-base' });
   
-  console.log('getVisibleNavItems - Final items:', items);
   return items;
 }
 

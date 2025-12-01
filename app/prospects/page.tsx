@@ -161,6 +161,28 @@ function ProspectsPageContent() {
       params.set('limit', String(pageSize * 3)); // e.g. 75 when pageSize=25
       params.set('start', '0');
 
+      // Filter by assigned user if not Corporate Admin
+      // Get user info from auth/me endpoint or context
+      try {
+        const userResponse = await fetch(`${apiUrl}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          const currentUser = userData.user || userData;
+          
+          // Only show assigned prospects for non-admin users
+          if (currentUser.role !== 'Corporate Admin' && currentUser.id) {
+            params.set('assigned_to', currentUser.id);
+          }
+        }
+      } catch {
+        // If auth check fails, continue without filtering
+      }
+
       // Map filters to backend query params where possible
       if (territoryFilter) {
         params.set('territory', territoryFilter);
@@ -386,9 +408,62 @@ function ProspectsPageContent() {
     return salesReps.filter(
       (rep) =>
         (rep.full_name || '').toLowerCase().includes(query) ||
-        (rep.email || '').toLowerCase().includes(query)
+        (rep.email || '').toLowerCase().includes(query) ||
+        (rep.first_name || '').toLowerCase().includes(query) ||
+        (rep.last_name || '').toLowerCase().includes(query)
     );
   }, [salesReps, repSearchQuery]);
+
+  // Load users when search query changes (debounced search)
+  useEffect(() => {
+    if (!showAssignModal) return;
+
+    const searchUsers = async () => {
+      // For short queries, just filter locally from already loaded users
+      if (repSearchQuery.trim().length < 2) {
+        return;
+      }
+
+      try {
+        setRepsLoading(true);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          return;
+        }
+
+        const searchParam = repSearchQuery.trim() ? `&search=${encodeURIComponent(repSearchQuery.trim())}` : '';
+        const url = `${apiUrl}/api/users?limit=1000${searchParam}`;
+        console.log('Searching users from:', url);
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const users = await response.json();
+          // Filter only active users
+          const activeUsers = Array.isArray(users) 
+            ? users.filter((u: any) => u.is_active !== false)
+            : [];
+          setSalesReps(activeUsers);
+        } else {
+          console.error('Search users failed:', response.status);
+        }
+      } catch (error) {
+        console.error('Error searching users:', error);
+      } finally {
+        setRepsLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(searchUsers, 300); // Debounce search
+    return () => clearTimeout(timeoutId);
+  }, [repSearchQuery, showAssignModal]);
 
   const getProspectGridClass = () => {
     if (detailsViewMode === 'split' && showProspectDetails) {
@@ -407,14 +482,14 @@ function ProspectsPageContent() {
     setSelectedProspect(null);
   }, []);
 
-  const toggleProspectSelection = useCallback((prospectName: string) => {
-    if (!prospectName) return;
+  const toggleProspectSelection = useCallback((prospectId: string) => {
+    if (!prospectId) return;
     setSelectedProspects((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(prospectName)) {
-        newSet.delete(prospectName);
+      if (newSet.has(prospectId)) {
+        newSet.delete(prospectId);
       } else {
-        newSet.add(prospectName);
+        newSet.add(prospectId);
       }
       return newSet;
     });
@@ -424,14 +499,14 @@ function ProspectsPageContent() {
     // Don't open details when in bulk select mode
     if (isBulkSelectMode) {
       // In bulk select mode, clicking the card should toggle selection
-      toggleProspectSelection(prospect.name || prospect.id);
+      toggleProspectSelection(prospect.id);
       return;
     }
     openProspectDetails(prospect);
   }, [isBulkSelectMode, toggleProspectSelection, openProspectDetails]);
 
-  const isSelected = (prospectName: string) => {
-    return selectedProspects.has(prospectName);
+  const isSelected = (prospectId: string) => {
+    return selectedProspects.has(prospectId);
   };
 
   const enterBulkSelectMode = () => {
@@ -451,10 +526,12 @@ function ProspectsPageContent() {
       // Deselect all
       setSelectedProspects(new Set());
     } else {
-      // Select all visible prospects
+      // Select all visible prospects by ID
       const newSet = new Set<string>();
       sortedProspects.forEach((p) => {
-        newSet.add(p.name || p.id);
+        if (p.id) {
+          newSet.add(p.id);
+        }
       });
       setSelectedProspects(newSet);
     }
@@ -471,7 +548,7 @@ function ProspectsPageContent() {
     let selectedVisibleCount = 0;
     
     sortedProspects.forEach((p) => {
-      if (selectedProspects.has(p.name || p.id)) {
+      if (p.id && selectedProspects.has(p.id)) {
         selectedVisibleCount++;
       }
     });
@@ -502,80 +579,172 @@ function ProspectsPageContent() {
     closeActivityModal();
   };
 
+  const loadUsersForAssign = async () => {
+    setRepsLoading(true);
+    // Don't reset search query here to avoid triggering useEffect immediately
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        showToast('Please login to assign prospects', 'error');
+        setSalesReps([]);
+        setRepsLoading(false);
+        return;
+      }
+
+      // Use exact same format as working examples
+      const requestUrl = `${apiUrl}/api/users?limit=1000`;
+      console.log('🔍 Fetching users from:', requestUrl);
+      console.log('🔑 Token present:', !!token);
+      console.log('🌐 API URL:', apiUrl);
+      
+      const response = await fetch(requestUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('📡 Users API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (response.ok) {
+        const users = await response.json();
+        // Filter only active users on frontend
+        const activeUsers = Array.isArray(users) 
+          ? users.filter((u: any) => u.is_active !== false)
+          : [];
+        setSalesReps(activeUsers);
+      } else {
+        const errorText = await response.text().catch(() => '');
+        console.error('Failed to load users:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: `${apiUrl}/api/users?limit=1000`,
+          error: errorText
+        });
+        if (response.status === 401 || response.status === 403) {
+          showToast('Session expired. Please login again.', 'error');
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        } else if (response.status === 404) {
+          console.error('❌ 404 Error Details:', {
+            requestedUrl: requestUrl,
+            responseUrl: response.url,
+            apiUrl: apiUrl,
+            suggestion: 'Check if backend server is running and route /api/users is registered. Try restarting backend server.'
+          });
+          showToast(`Users API not found (404). Check browser console for details.`, 'error');
+        } else {
+          showToast(`Failed to load users (${response.status}): ${response.statusText}`, 'error');
+        }
+        setSalesReps([]);
+      }
+    } catch (error: any) {
+      console.error('Error loading users:', error);
+      showToast(`Error loading users: ${error.message || 'Network error'}`, 'error');
+      setSalesReps([]);
+    } finally {
+      setRepsLoading(false);
+    }
+  };
+
   const openAssignModalForProspect = async (prospect: Prospect) => {
     setCurrentProspect(prospect);
+    setRepSearchQuery(''); // Reset search before opening modal
     setShowAssignModal(true);
-    setRepsLoading(true);
-    setRepSearchQuery('');
+    await loadUsersForAssign();
+  };
 
-    setTimeout(() => {
-      setSalesReps([
-        { name: 'calvin@email.com', full_name: 'Calvin M.', email: 'calvin@email.com' },
-        { name: 'shruti@email.com', full_name: 'Shruti K.', email: 'shruti@email.com' },
-        { name: 'admin@email.com', full_name: 'Administrator', email: 'admin@email.com' },
-      ]);
-      setRepsLoading(false);
-    }, 300);
+  const openAssignModalForBulk = async () => {
+    if (selectedProspects.size > 0) {
+      setCurrentProspect(null);
+      setRepSearchQuery(''); // Reset search before opening modal
+      setShowAssignModal(true);
+      await loadUsersForAssign();
+    }
   };
 
   const closeAssignModal = () => {
     setShowAssignModal(false);
     setCurrentProspect(null);
     setRepSearchQuery('');
+    setSalesReps([]); // Clear users list when closing
   };
 
-  const assignToRep = async (repName: string) => {
+  const assignToRep = async (user: any) => {
     if (!currentProspect && selectedProspects.size === 0) return;
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      const userId = user === null || user === 'Administrator' ? null : (user.id || user);
+      const userName = user === null || user === 'Administrator' ? 'Administrator' : (user.full_name || user.email || 'User');
+
       if (selectedProspects.size > 0) {
-        // Bulk assign
-        const leadNames = Array.from(selectedProspects);
+        // Bulk assign - use IDs instead of names
+        const leadIds = Array.from(selectedProspects);
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/leads/bulk/assign`,
+          `${apiUrl}/api/leads/bulk/assign`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
-              lead_names: leadNames,
-              user_id: repName === 'Administrator' ? null : repName,
+              lead_ids: leadIds,
+              user_id: userId,
             }),
           }
         );
         
         if (response.ok) {
           const result = await response.json();
-          showToast(`Successfully assigned ${result.count} prospect(s) to ${repName}`, 'success');
+          showToast(`Successfully assigned ${result.count} prospect(s) to ${userName}`, 'success');
           // Reload prospects to reflect changes
           loadProspects();
           exitBulkSelectMode();
         } else {
-          showToast('Failed to assign prospects', 'error');
+          const errorData = await response.json().catch(() => ({ error: 'Failed to assign prospects' }));
+          showToast(errorData.error || 'Failed to assign prospects', 'error');
         }
       } else {
-        // Single assign
-        const leadId = currentProspect?.name || currentProspect?.id;
+        // Single assign - use ID instead of name
+        const leadId = currentProspect?.id;
         if (leadId) {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/leads/${leadId}/assign`,
+            `${apiUrl}/api/leads/${leadId}/assign`,
             {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
               body: JSON.stringify({
-                user_id: repName === 'Administrator' ? null : repName,
+                user_id: userId,
               }),
             }
           );
           
           if (response.ok) {
-            showToast(`Assigned ${currentProspect?.company_name} to ${repName}`, 'success');
+            showToast(`Assigned ${currentProspect?.company_name} to ${userName}`, 'success');
             loadProspects();
           } else {
-            showToast('Failed to assign prospect', 'error');
+            const errorData = await response.json().catch(() => ({ error: 'Failed to assign prospect' }));
+            showToast(errorData.error || 'Failed to assign prospect', 'error');
           }
         }
       }
-    } catch {
+    } catch (error) {
+      console.error('Error assigning prospect(s):', error);
       showToast('Error assigning prospect(s)', 'error');
     }
 
@@ -760,11 +929,7 @@ function ProspectsPageContent() {
               </div>
               <div className="flex items-center justify-end gap-3 w-full md:w-auto flex-wrap">
                 <button
-                  onClick={() => {
-                    if (selectedProspects.size > 0) {
-                      setShowAssignModal(true);
-                    }
-                  }}
+                  onClick={openAssignModalForBulk}
                   disabled={selectedProspects.size === 0}
                   className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1240,17 +1405,17 @@ function ProspectsPageContent() {
                       onClick={() => handleProspectCardClick(prospect)}
                       className={`bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
                         getCardBorderClass(prospect.status)
-                      } ${isSelected(prospect.name || prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'} ${
-                        selectedProspect?.name === prospect.name && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-green-500 border-green-500' : ''
+                      } ${isSelected(prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'} ${
+                        selectedProspect?.id === prospect.id && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-green-500 border-green-500' : ''
                       }`}
                     >
                       {isBulkSelectMode && (
                         <input
                           type="checkbox"
-                          checked={isSelected(prospect.name || prospect.id)}
+                          checked={isSelected(prospect.id)}
                           onChange={(e) => {
                             e.stopPropagation();
-                            toggleProspectSelection(prospect.name || prospect.id);
+                            toggleProspectSelection(prospect.id);
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1461,40 +1626,62 @@ function ProspectsPageContent() {
               </button>
             </div>
             <div className="p-4">
-              <input
-                type="search"
-                value={repSearchQuery}
-                onChange={(e) => setRepSearchQuery(e.target.value)}
-                placeholder="Search team members..."
-                className="bg-gray-700 border border-gray-600 text-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 mb-4"
-              />
+              <div className="relative mb-4">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                </div>
+                <input
+                  type="search"
+                  value={repSearchQuery}
+                  onChange={(e) => setRepSearchQuery(e.target.value)}
+                  placeholder="Search users by name or email..."
+                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-4 py-2.5 placeholder-gray-400"
+                  autoFocus
+                />
+              </div>
 
               {repsLoading ? (
                 <div className="flex justify-center py-12">
                   <div className="spinner w-8 h-8 border-4 border-gray-700 border-t-blue-600 rounded-full animate-spin"></div>
                 </div>
+              ) : filteredSalesReps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <p className="text-gray-400 text-sm">No users found</p>
+                  {repSearchQuery && (
+                    <p className="text-gray-500 text-xs mt-1">Try a different search term</p>
+                  )}
+                </div>
               ) : (
                 <ul className="space-y-3 max-h-60 overflow-y-auto">
                   {filteredSalesReps.map((rep) => (
                     <li
-                      key={rep.name}
-                      onClick={() => assignToRep(rep.name)}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-700 cursor-pointer"
+                      key={rep.id || rep.email}
+                      onClick={() => assignToRep(rep)}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold shadow-md">
-                          {getInitials(rep.full_name)}
+                      <div className="flex items-center flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold shadow-md flex-shrink-0">
+                          {getInitials(rep.full_name || rep.email)}
                         </div>
-                        <span className="ml-3 text-sm font-medium text-white">{rep.full_name}</span>
+                        <div className="ml-3 flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {rep.full_name || `${rep.first_name || ''} ${rep.last_name || ''}`.trim() || rep.email}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">{rep.email}</p>
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-400">{rep.email}</span>
+                      {rep.role && (
+                        <span className="text-xs text-gray-500 ml-2 flex-shrink-0">{rep.role}</span>
+                      )}
                     </li>
                   ))}
                   <li
-                    onClick={() => assignToRep('Administrator')}
-                    className="flex items-center p-2 rounded-lg hover:bg-gray-700 cursor-pointer"
+                    onClick={() => assignToRep(null)}
+                    className="flex items-center p-3 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors border-t border-gray-700 pt-3"
                   >
-                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-700 text-gray-400">
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 text-gray-400 flex-shrink-0">
                       <X className="w-5 h-5" />
                     </span>
                     <span className="ml-3 text-sm font-medium text-gray-400 italic">Unassign</span>

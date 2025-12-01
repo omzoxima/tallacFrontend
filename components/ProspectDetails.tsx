@@ -25,6 +25,7 @@ import TallacActivityModal from './TallacActivityModal';
 import ContactModal from './ContactModal';
 import EditCompanyModal from './EditCompanyModal';
 import { useCall } from '@/contexts/CallContext';
+import { showToast } from './Toast';
 
 interface ProspectDetailsProps {
   prospect: any;
@@ -65,20 +66,76 @@ export default function ProspectDetails({
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactModalMode, setContactModalMode] = useState<'add' | 'edit'>('add');
   const [editingContact, setEditingContact] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const salesReps = [
-    { name: 'user1@example.com', full_name: 'John Doe', email: 'john@example.com' },
-    { name: 'user2@example.com', full_name: 'Jane Smith', email: 'jane@example.com' },
-    { name: 'user3@example.com', full_name: 'Bob Johnson', email: 'bob@example.com' },
-  ];
+  // Load users from API
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('No token found');
+          setUsers([]);
+          setLoadingUsers(false);
+          return;
+        }
+        
+        const response = await fetch(`${apiUrl}/api/users?status=active&limit=1000`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Users API error:', response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error details:', errorData);
+          setUsers([]);
+          return;
+        }
+        
+        const data = await response.json();
+        console.log('Users API response:', data);
+        
+        // Handle different response formats
+        let usersList = [];
+        if (Array.isArray(data)) {
+          usersList = data;
+        } else if (data.users && Array.isArray(data.users)) {
+          usersList = data.users;
+        } else if (data.data && Array.isArray(data.data)) {
+          usersList = data.data;
+        }
+        
+        setUsers(usersList);
+        console.log('Loaded users:', usersList.length);
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        setUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+    
+    if (showAssignModal) {
+      loadUsers();
+    }
+  }, [showAssignModal]);
 
-  const filteredSalesReps = repSearchQuery
-    ? salesReps.filter(
-        (rep) =>
-          rep.full_name.toLowerCase().includes(repSearchQuery.toLowerCase()) ||
-          rep.email.toLowerCase().includes(repSearchQuery.toLowerCase())
+  const filteredUsers = repSearchQuery
+    ? users.filter(
+        (user) =>
+          (user.full_name || '').toLowerCase().includes(repSearchQuery.toLowerCase()) ||
+          (user.email || '').toLowerCase().includes(repSearchQuery.toLowerCase()) ||
+          (user.first_name || '').toLowerCase().includes(repSearchQuery.toLowerCase()) ||
+          (user.last_name || '').toLowerCase().includes(repSearchQuery.toLowerCase())
       )
-    : salesReps;
+    : users;
 
   const getInitials = (name?: string) => {
     if (!name) return '?';
@@ -348,8 +405,43 @@ export default function ProspectDetails({
     setRepSearchQuery('');
   };
 
-  const assignToRep = (_repName: string) => {
-    closeAssignModal();
+  const assignToRep = async (userId: string | null) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      const leadId = prospect.name || prospect.id;
+      
+      if (!leadId) {
+        showToast('Prospect ID not found', 'error');
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/api/leads/${leadId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          assigned_to_id: userId || null,
+        }),
+      });
+
+      if (response.ok) {
+        showToast(userId ? 'User assigned successfully' : 'User unassigned successfully', 'success');
+        closeAssignModal();
+        // Refresh prospect details
+        if (onClose) {
+          window.location.reload();
+        }
+      } else {
+        const error = await response.json().catch(() => ({}));
+        showToast(error.error || 'Failed to assign user', 'error');
+      }
+    } catch (error) {
+      console.error('Error assigning user:', error);
+      showToast('Failed to assign user', 'error');
+    }
   };
 
   const viewAllActivities = () => {
@@ -916,40 +1008,62 @@ export default function ProspectDetails({
               <div>
                 <label className="text-sm font-medium text-gray-300 mb-2 block">Search Team Members</label>
                 <input
-                  type="search"
+                  type="text"
                   value={repSearchQuery}
                   onChange={(e) => setRepSearchQuery(e.target.value)}
-                  placeholder="Search..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
+                  placeholder="Type to search users..."
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent placeholder-gray-400"
+                  autoFocus
                 />
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {filteredSalesReps.map((rep) => (
-                  <button
-                    key={rep.name}
-                    onClick={() => assignToRep(rep.name)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white text-xs font-semibold">
-                        {getInitials(rep.full_name)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{rep.full_name}</p>
-                        <p className="text-xs text-gray-400">{rep.email}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-                <button
-                  onClick={() => assignToRep('Administrator')}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-gray-400">
-                    <X className="w-5 h-5" />
+                {loadingUsers ? (
+                  <div className="text-center py-4 text-gray-400">Loading users...</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-center py-4 text-gray-400">
+                    {repSearchQuery ? 'No users found' : 'No users available'}
                   </div>
-                  <span className="text-sm font-medium text-gray-400 italic">Unassign</span>
-                </button>
+                ) : (
+                  <>
+                    {filteredUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => assignToRep(user.id)}
+                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-700 transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white text-xs font-semibold">
+                            {getInitials(user.full_name || user.email)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white">{user.full_name || user.email}</p>
+                            <p className="text-xs text-gray-400">{user.email}</p>
+                            {user.role && (
+                              <p className="text-xs text-gray-500">{user.role}</p>
+                            )}
+                          </div>
+                        </div>
+                        {prospect.assigned_to_id === user.id && (
+                          <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">Assigned</span>
+                        )}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => assignToRep(null)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700 transition-colors text-left border-t border-gray-700 pt-3 mt-2"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-gray-400">
+                        <X className="w-5 h-5" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-400 italic">Unassign</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -86,6 +86,18 @@ header * {
   color: #1f2937 !important;
 }
 
+/* Exception for active navigation links */
+header nav a.nav-link-active,
+header nav a[style*="background-color: rgb(82, 82, 82)"],
+header nav a[style*="background-color:#525252"] {
+  background-color: #525252 !important;
+  color: #ffffff !important;
+}
+
+header nav a.nav-link-active * {
+  color: #ffffff !important;
+}
+
 header .text-gray-600,
 header .text-gray-700,
 header .text-gray-900 {

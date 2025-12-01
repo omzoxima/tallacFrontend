@@ -134,8 +134,9 @@ export default function RecordCallOutcomeModal() {
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-800">
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-400">RECORD CALL OUTCOME</p>
-            <p className="text-sm sm:text-base font-medium text-white mt-1 truncate">{prospectName}</p>
-            <p className="text-xs text-gray-400 mt-0.5">• {formatDuration(elapsed)}</p>
+            <p className="text-sm sm:text-base font-medium text-white mt-1 truncate">
+              {prospectName} • {formatDuration(elapsed)}
+            </p>
           </div>
           <button
             onClick={handleClose}
@@ -150,21 +151,33 @@ export default function RecordCallOutcomeModal() {
           {/* Outcome */}
           <div>
             <p className="text-xs font-semibold text-gray-300 mb-3 tracking-wide">OUTCOME</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {OUTCOMES.map((o) => {
                 const isSelected = selectedOutcome === o.key;
+                // Color mapping based on outcome type
+                const getButtonColors = () => {
+                  if (isSelected) {
+                    switch (o.key) {
+                      case 'Connected': return 'bg-green-600 border-green-500 ring-2 ring-green-400';
+                      case 'No Answer': return 'bg-yellow-600 border-yellow-500 ring-2 ring-yellow-400';
+                      case 'Voicemail': return 'bg-blue-600 border-blue-500 ring-2 ring-blue-400';
+                      case 'Busy': return 'bg-orange-600 border-orange-500 ring-2 ring-orange-400';
+                      case 'Wrong Number': return 'bg-red-600 border-red-500 ring-2 ring-red-400';
+                      case 'Do Not Disturb': return 'bg-purple-600 border-purple-500 ring-2 ring-purple-400';
+                      default: return 'bg-gray-800 border-gray-700 ring-2 ring-gray-600';
+                    }
+                  }
+                  return 'bg-gray-800 border-gray-700 hover:border-gray-500';
+                };
+                
                 return (
                   <button
                     key={o.key}
                     type="button"
                     onClick={() => setSelectedOutcome(o.key)}
-                    className={`flex flex-col justify-center items-center gap-2 rounded-xl px-4 py-4 border transition-all duration-150 ${
-                      isSelected
-                        ? 'bg-gray-800 border-blue-500 ring-2 ring-blue-400'
-                        : 'bg-gray-800 border-gray-700 hover:border-gray-500'
-                    }`}
+                    className={`flex flex-col justify-center items-center gap-2 rounded-xl px-4 py-4 border transition-all duration-150 ${getButtonColors()}`}
                   >
-                    <span className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-900/60 text-white">
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 text-white">
                       {o.key === 'Connected' && <Phone className="w-4 h-4" />}
                       {o.key === 'No Answer' && <PhoneOff className="w-4 h-4" />}
                       {o.key === 'Voicemail' && <Voicemail className="w-4 h-4" />}
@@ -172,7 +185,7 @@ export default function RecordCallOutcomeModal() {
                       {o.key === 'Wrong Number' && <AlertCircle className="w-4 h-4" />}
                       {o.key === 'Do Not Disturb' && <Ban className="w-4 h-4" />}
                     </span>
-                    <span className="text-sm font-medium text-gray-100">{o.label}</span>
+                    <span className="text-sm font-medium text-white">{o.label}</span>
                   </button>
                 );
               })}
@@ -236,13 +249,12 @@ export default function RecordCallOutcomeModal() {
             type="button"
             onClick={handleSave}
             disabled={!canSave || saving}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 ${
+            className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors ${
               canSave && !saving
-                ? 'bg-red-600 text-white hover:bg-red-700'
+                ? 'bg-green-600 text-white hover:bg-green-700'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
             }`}
           >
-            <PhoneOff className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>

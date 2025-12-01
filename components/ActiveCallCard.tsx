@@ -10,6 +10,7 @@ export default function ActiveCallCard() {
 
   const isActive = callState.isCallActive && !!callState.currentCall;
 
+  // Timer for call duration
   useEffect(() => {
     if (!isActive || !callState.currentCall) return;
 
@@ -28,33 +29,37 @@ export default function ActiveCallCard() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  if (!isActive) return null;
+
+  const contactName = callState.currentCall?.prospectName || 'Unknown Contact';
+  const companyName = callState.currentCall?.companyName || '';
+  const phone = callState.currentCall?.phoneNumber || '';
+
+  const subtitle = companyName || phone || 'Active call in progress...';
+
   const handleHangUp = () => {
     endCall();
   };
 
-  if (!isActive) return null;
-
-  const contactName = callState.currentCall?.prospectName || 'Unknown Contact';
-  const phone = callState.currentCall?.phoneNumber || '';
-
-  // Compact pill to sit on the right side of the header (after navigation)
+  // Simple pill: full green background, white text, red end-call button
   return (
     <div className="hidden md:flex items-center">
-      <div className="flex items-center rounded-full bg-emerald-700 text-white shadow-md pl-4 pr-1 py-1">
-        {/* Left: phone icon + name + phone */}
-        <div className="flex items-center gap-2 pr-3">
-          <Phone className="w-4 h-4" />
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold truncate max-w-xs">{contactName}</span>
-            <span className="text-xs opacity-80 truncate max-w-xs">
-              {phone || 'Active call in progress...'}
-            </span>
-          </div>
+      <div className="flex items-center gap-3 rounded-full bg-emerald-700 text-white shadow-md pl-4 pr-2 py-2 min-w-[340px]">
+        {/* Left: phone icon */}
+        <div className="flex items-center justify-center w-8 h-8 rounded-full border border-emerald-400/70">
+          <Phone className="w-4 h-4 text-white" />
         </div>
+
+        {/* Middle: name + company */}
+        <div className="flex flex-col justify-center flex-1 min-w-0">
+          <span className="text-sm font-semibold truncate">{contactName}</span>
+          <span className="text-xs opacity-90 truncate">{subtitle}</span>
+        </div>
+
         {/* Right: red duration pill with hangup icon */}
         <button
           onClick={handleHangUp}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs font-mono font-semibold px-3 py-1.5 rounded-full transition-colors"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs font-mono font-semibold px-4 py-1.5 rounded-full transition-colors"
           title="End Call"
         >
           <PhoneOff className="w-4 h-4" />
