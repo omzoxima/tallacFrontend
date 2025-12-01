@@ -108,8 +108,7 @@ function TerritoriesPageContent() {
         zipcodes: t.zip_codes || []
       })) : [];
       setTerritories(mappedTerritories);
-    } catch (error) {
-      console.error('Error loading territories:', error);
+    } catch {
       showToast('Failed to load territories. Please try again.', 'error');
       setTerritories([]);
     } finally {
@@ -126,8 +125,8 @@ function TerritoriesPageContent() {
         setAvailableRegions(data.regions || []);
         setAvailableStates(data.states || []);
       }
-    } catch (error) {
-      console.error('Error loading filter options:', error);
+    } catch {
+      // Silently fail filter options loading
     }
   };
 

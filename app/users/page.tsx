@@ -139,8 +139,7 @@ function UsersPageContent() {
       })) : [];
       setUsers(transformedUsers);
       return transformedUsers;
-    } catch (error) {
-      console.error('Error fetching users:', error);
+    } catch {
       showToast('Failed to load users. Please try again.', 'error');
       setUsers([]);
       return [];
@@ -662,8 +661,8 @@ function UsersPageContent() {
                     telephony_count: updatedUser.telephony_count || 0
                   });
                 }
-              } catch (error) {
-                console.error('Error fetching updated user:', error);
+              } catch {
+                // Silently handle error fetching updated user
               }
             }
             setShowAddTelephonyModal(false);

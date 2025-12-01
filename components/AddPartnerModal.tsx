@@ -56,9 +56,9 @@ export default function AddPartnerModal({ onClose, onSuccess }: AddPartnerModalP
       showToast('Partner created successfully!', 'success');
       onSuccess(data);
       onClose();
-    } catch (error: any) {
-      setErrorMessage(error.message || 'An unexpected error occurred');
-      console.error('Submit error:', error);
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'An unexpected error occurred';
+      setErrorMessage(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

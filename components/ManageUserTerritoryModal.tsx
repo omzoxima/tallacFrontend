@@ -4,14 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapPin, Search, X } from 'lucide-react';
 import { showToast } from './Toast';
 
-interface Territory {
-  id: string;
-  territory_name: string;
-  territory_code?: string;
-  territory_state?: string;
-  territory_region?: string;
-}
-
 interface PartnerTerritory {
   partner_id: string;
   partner_name: string;
@@ -27,11 +19,11 @@ interface ManageUserTerritoryModalProps {
     id?: string;
     name?: string;
     email?: string;
-    full_name?: string;
-    territories?: any[];
+    full_name?: string | null;
+    territories?: any[] | null;
   } | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export default function ManageUserTerritoryModal({
@@ -94,8 +86,7 @@ export default function ManageUserTerritoryModal({
           });
         });
         setAvailableTerritories(allTerritories);
-      } catch (error) {
-        console.error('Error loading partners:', error);
+      } catch {
         showToast('Failed to load partners/territories', 'error');
       } finally {
         setLoadingPartners(false);
@@ -110,7 +101,7 @@ export default function ManageUserTerritoryModal({
     if (user?.territories && Array.isArray(user.territories)) {
       const existing = new Set<string>();
       user.territories.forEach((t: any) => {
-        const id = t.territory || t.territory_id || t.id || t.name;
+        const id = t.territory || t.territory_id || t.id;
         if (id) existing.add(id);
       });
       setSelectedTerritoryIds(existing);
@@ -224,11 +215,11 @@ export default function ManageUserTerritoryModal({
       }
 
       showToast('Territories updated successfully', 'success');
-      onSuccess();
+      onSuccess?.();
       onClose();
-    } catch (error: any) {
-      console.error('Error saving user territories:', error);
-      showToast(error.message || 'Unable to save territories', 'error');
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'Unable to save territories';
+      showToast(errorMessage, 'error');
     } finally {
       setSaving(false);
     }

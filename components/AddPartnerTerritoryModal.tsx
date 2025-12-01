@@ -99,9 +99,9 @@ export default function AddPartnerTerritoryModal({
         }));
 
         setTerritories(normalized.filter((territory) => Boolean(territory.id)));
-      } catch (fetchError: any) {
-        console.error(fetchError);
-        setError(fetchError.message || 'Unable to load territories');
+      } catch (fetchError: unknown) {
+        const errorMessage = (fetchError instanceof Error && fetchError.message) || 'Unable to load territories';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -176,9 +176,9 @@ export default function AddPartnerTerritoryModal({
       showToast('Territories added successfully', 'success');
       onSuccess();
       onClose();
-    } catch (submitError: any) {
-      console.error(submitError);
-      setError(submitError.message || 'Unable to add territories');
+    } catch (submitError: unknown) {
+      const errorMessage = (submitError instanceof Error && submitError.message) || 'Unable to add territories';
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }

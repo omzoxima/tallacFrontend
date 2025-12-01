@@ -72,7 +72,6 @@ export default function KnowledgeBasePage() {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        console.error('No token found');
         return;
       }
 
@@ -95,8 +94,8 @@ export default function KnowledgeBasePage() {
       
       const data = await response.json();
       setFiles(data);
-    } catch (error: any) {
-      console.error('Error loading files:', error);
+    } catch {
+      // Silently fail file loading
     } finally {
       setLoading(false);
     }

@@ -96,8 +96,7 @@ function PartnersPageContent() {
       }
       const data = await response.json();
       setPartners(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching partners:', error);
+    } catch {
       showToast('Failed to load partners. Please try again.', 'error');
       setPartners([]);
     } finally {
@@ -202,8 +201,8 @@ function PartnersPageContent() {
           setSelectedPartner(updatedPartner);
           showToast('Team member added successfully', 'success');
         }
-      } catch (error) {
-        console.error('Error fetching updated partner:', error);
+      } catch {
+        // Silently handle error fetching updated partner
       }
     }
     setShowAddTeamMemberModal(false);
@@ -234,8 +233,8 @@ function PartnersPageContent() {
           setSelectedPartner(updatedPartner);
           showToast('Territories added successfully', 'success');
         }
-      } catch (error) {
-        console.error('Error fetching updated partner:', error);
+      } catch {
+        // Silently handle error fetching updated partner
       }
     }
     setShowAddTerritoryModal(false);
@@ -618,7 +617,7 @@ function PartnersPageContent() {
       {showAddPartnerModal && (
         <AddPartnerModal
           onClose={() => setShowAddPartnerModal(false)}
-          onSuccess={(data) => {
+          onSuccess={() => {
             showToast('Partner created successfully!', 'success');
             fetchPartners();
             setShowAddPartnerModal(false);

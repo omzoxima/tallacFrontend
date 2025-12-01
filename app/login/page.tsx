@@ -125,10 +125,9 @@ function LoginForm() {
       setTimeout(() => {
         window.location.href = redirectPath;
       }, 100);
-    } catch (error: any) {
-      const errorMessage = error.message || 'An error occurred. Please try again.';
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'An error occurred. Please try again.';
       setError(errorMessage);
-      console.error('Login error:', error);
       setLoading(false);
     }
   };

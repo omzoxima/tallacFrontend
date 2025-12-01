@@ -142,10 +142,6 @@ export default function ContactModal({
         organization_id: organizationId,
       };
       
-      if (mode === 'edit' && contactData) {
-        contactData.contact_name = contactData.name;
-      }
-      
       onSave(contactData);
     } finally {
       setSaving(false);

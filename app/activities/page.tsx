@@ -123,8 +123,8 @@ function ActivitiesPageContent() {
             assignment: data.assignment_count || 0,
           });
         }
-      } catch (error) {
-        console.error('Error loading activities summary:', error);
+      } catch {
+        // Silently fail summary loading
       }
     };
 
@@ -200,8 +200,7 @@ function ActivitiesPageContent() {
       });
       setCompanies(Array.from(uniqueCompanies).sort());
       setUsers(Array.from(uniqueUsers).sort());
-    } catch (error) {
-      console.error('Error loading activities:', error);
+    } catch {
       showToast('Failed to load activities. Please try again.', 'error');
       setActivities([]);
     } finally {
@@ -225,8 +224,8 @@ function ActivitiesPageContent() {
       const data = await response.json();
       setProspects(Array.isArray(data) ? data : []);
       }
-    } catch (error) {
-      console.error('Error loading prospects:', error);
+    } catch {
+      // Silently fail prospects loading
     }
   };
 
@@ -245,7 +244,6 @@ function ActivitiesPageContent() {
         setDetailsViewMode('popup');
       }
     } else {
-      console.warn(`No prospect found for company: ${activity.company}`);
       showToast(`No prospect information available for ${activity.company || 'this activity'}`, 'warning');
     }
   };
@@ -258,7 +256,6 @@ function ActivitiesPageContent() {
 
   const handleEditActivity = (activity: Activity) => {
     // Open activity edit modal - this will be handled by ProspectDetails or a separate modal
-    console.log('Edit activity:', activity);
     // For now, we'll pass this to ProspectDetails to handle
     setSelectedActivity(activity);
     // You can add a state for showing edit modal here
@@ -288,19 +285,6 @@ function ActivitiesPageContent() {
       'notes': 'Notes',
     };
     return typeMap[type?.toLowerCase()] || 'Activity';
-  };
-
-  const getActivityTypeColor = (type: string) => {
-    const typeMap: Record<string, string> = {
-      'call-log': 'bg-green-600',
-      'callback': 'bg-cyan-600',
-      'appointment': 'bg-orange-600',
-      'note': 'bg-pink-600',
-      'notes': 'bg-pink-600',
-      'changes': 'bg-purple-600',
-      'assignment': 'bg-teal-600',
-    };
-    return typeMap[type?.toLowerCase()] || 'bg-blue-600';
   };
 
   const formatDate = (dateStr: string) => {
@@ -373,7 +357,7 @@ function ActivitiesPageContent() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(a =>
-        ((a as any).subject || '').toLowerCase().includes(query) ||
+        (a.subject || '').toLowerCase().includes(query) ||
         (a.title || '').toLowerCase().includes(query) ||
         (a.company || '').toLowerCase().includes(query) ||
         (a.description || '').toLowerCase().includes(query) ||
@@ -417,7 +401,8 @@ function ActivitiesPageContent() {
     const filtered = [...filteredActivities];
     
     filtered.sort((a, b) => {
-      let compareA: any, compareB: any;
+      let compareA: string | number | Date;
+      let compareB: string | number | Date;
       
       switch (sortColumn) {
         case 'company':
@@ -462,10 +447,6 @@ function ActivitiesPageContent() {
     setCreatedByFilter('');
     setAssignedToFilter('');
     setShowFilterModal(false);
-  };
-
-  const filterByCompany = (company: string) => {
-    setCompanyFilter(company);
   };
 
   const refreshData = () => {
@@ -657,7 +638,7 @@ function ActivitiesPageContent() {
                   <Tooltip text="Sort activities by">
                     <select
                       value={sortColumn}
-                      onChange={(e) => setSortColumn(e.target.value as any)}
+                      onChange={(e) => setSortColumn(e.target.value as 'queue' | 'company' | 'type' | 'date' | 'user')}
                       className="bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-400 dark:text-gray-400 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 focus:outline-none focus:ring-0 h-10 px-3 pr-8 text-sm appearance-none cursor-pointer rounded-lg"
                     >
                       <option value="queue">Next Action</option>
@@ -737,7 +718,7 @@ function ActivitiesPageContent() {
               </button>
               <select
                 value={sortColumn}
-                onChange={(e) => setSortColumn(e.target.value as any)}
+                onChange={(e) => setSortColumn(e.target.value as 'queue' | 'company' | 'type' | 'date' | 'user')}
                 className="bg-gray-800 dark:bg-gray-800 bg-white border border-gray-600 dark:border-gray-600 border-gray-300 text-gray-400 dark:text-gray-400 text-gray-700 text-sm rounded-lg p-2.5"
               >
                 <option value="queue">Next Action</option>

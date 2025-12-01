@@ -198,8 +198,7 @@ export default function ProspectDetails({
     setSelectedActivity(null);
   };
 
-  const saveActivity = (activity: any) => {
-    console.log('Saving activity:', activity);
+  const saveActivity = () => {
     closeActivityModal();
   };
 
@@ -214,7 +213,6 @@ export default function ProspectDetails({
   };
 
   const saveNote = () => {
-    console.log('Saving note:', noteText);
     closeNoteModal();
   };
 
@@ -229,7 +227,6 @@ export default function ProspectDetails({
   };
 
   const saveStatus = () => {
-    console.log('Changing status to:', selectedStatus);
     closeStatusModal();
   };
 
@@ -281,12 +278,9 @@ export default function ProspectDetails({
         window.location.reload();
         setShowEditCompanyModal(false);
       } else {
-        const error = await response.json();
-        console.error('Error updating company:', error);
         alert('Failed to update company');
       }
-    } catch (error) {
-      console.error('Error saving company:', error);
+    } catch {
       alert('Failed to save company');
     }
   };
@@ -318,8 +312,6 @@ export default function ProspectDetails({
           }
           setShowContactModal(false);
         } else {
-          const error = await response.json();
-          console.error('Error creating contact:', error);
           alert('Failed to create contact');
         }
       } else {
@@ -338,13 +330,10 @@ export default function ProspectDetails({
           window.location.reload(); // Temporary - should use proper state management
           setShowContactModal(false);
         } else {
-          const error = await response.json();
-          console.error('Error updating contact:', error);
           alert('Failed to update contact');
         }
       }
-    } catch (error) {
-      console.error('Error saving contact:', error);
+    } catch {
       alert('Failed to save contact');
     }
   };
@@ -359,8 +348,7 @@ export default function ProspectDetails({
     setRepSearchQuery('');
   };
 
-  const assignToRep = (repName: string) => {
-    console.log('Assigning prospect to:', repName);
+  const assignToRep = (_repName: string) => {
     closeAssignModal();
   };
 

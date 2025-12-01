@@ -108,8 +108,8 @@ export default function AddUserModal({ onClose, onSuccess, editUser, availableTe
         const data = await response.json();
         setTerritories(Array.isArray(data) ? data : []);
       }
-    } catch (error) {
-      console.error('Error loading territories:', error);
+    } catch {
+      // Silently fail territories loading
     } finally {
       setLoadingTerritories(false);
     }
@@ -194,7 +194,7 @@ export default function AddUserModal({ onClose, onSuccess, editUser, availableTe
         throw new Error(error.error || `Failed to ${editUser ? 'update' : 'create'} user`);
       }
 
-      const data = await response.json();
+      await response.json();
       const successMsg = editUser ? 'User updated successfully!' : 'User created successfully!';
       setSuccessMessage(successMsg);
       showToast(successMsg, 'success');
@@ -204,9 +204,9 @@ export default function AddUserModal({ onClose, onSuccess, editUser, availableTe
         onSuccess();
         onClose();
       }, 2000);
-    } catch (error: any) {
-      setErrorMessage(error.message || 'An unexpected error occurred');
-      console.error('Submit error:', error);
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'An unexpected error occurred';
+      setErrorMessage(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

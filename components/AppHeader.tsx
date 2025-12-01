@@ -18,11 +18,7 @@ export default function AppHeader() {
   
   // Debug logging (remove in production)
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.log('AppHeader - User:', user);
-      console.log('AppHeader - User Role:', user?.role);
-      console.log('AppHeader - Visible Nav Items:', visibleNavItems);
-    }
+    // User and navigation items are ready
   }, [user, visibleNavItems]);
 
   const handleLogout = async () => {

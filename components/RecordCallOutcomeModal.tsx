@@ -115,9 +115,9 @@ export default function RecordCallOutcomeModal() {
 
       showToast('Call outcome recorded successfully', 'success');
       clearCall();
-    } catch (error: any) {
-      console.error('Error saving call outcome:', error);
-      showToast(error.message || 'Unable to save call outcome', 'error');
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'Unable to save call outcome';
+      showToast(errorMessage, 'error');
     } finally {
       setSaving(false);
     }

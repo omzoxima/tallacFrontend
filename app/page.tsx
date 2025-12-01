@@ -57,38 +57,33 @@ export default function Dashboard() {
         return;
       }
 
-      try {
-        const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            showToast('Session expired. Please login again.', 'error');
-            localStorage.removeItem('token');
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to load dashboard data');
+      const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-        
-        const data = await response.json();
-        
-        setKpis((prev) => data.kpis || prev);
-        setPipeline((prev) => data.pipeline || prev);
-        setActivityBreakdown((prev) => data.activityBreakdown || prev);
-        
-        // Use real data from API
-        setPerformance((prev) => data.performance || prev);
-        setWeeklyPerformance((prev) => data.weeklyPerformance || prev);
-      } catch (fetchError: any) {
-        throw fetchError;
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          showToast('Session expired. Please login again.', 'error');
+          localStorage.removeItem('token');
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to load dashboard data');
       }
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      
+      const data = await response.json();
+      
+      setKpis((prev) => data.kpis || prev);
+      setPipeline((prev) => data.pipeline || prev);
+      setActivityBreakdown((prev) => data.activityBreakdown || prev);
+      
+      // Use real data from API
+      setPerformance((prev) => data.performance || prev);
+      setWeeklyPerformance((prev) => data.weeklyPerformance || prev);
+    } catch {
       showToast('Failed to load dashboard data. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -112,7 +107,7 @@ export default function Dashboard() {
             return;
           }
         }
-      } catch (e) {
+      } catch {
         localStorage.removeItem('token');
         router.push('/login');
         return;

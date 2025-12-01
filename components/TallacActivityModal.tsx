@@ -98,8 +98,7 @@ export default function TallacActivityModal({
           })),
         ]);
       }
-    } catch (error) {
-      console.error('Error loading users:', error);
+    } catch {
       setUsers([
         { value: 'Administrator', label: 'Administrator' },
       ]);
@@ -198,9 +197,9 @@ export default function TallacActivityModal({
 
       onSave(activityPayload);
       onClose();
-    } catch (error: any) {
-      showToast(error.message || 'An unexpected error occurred', 'error');
-      console.error('Error saving activity:', error);
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'An unexpected error occurred';
+      showToast(errorMessage, 'error');
     }
   };
 

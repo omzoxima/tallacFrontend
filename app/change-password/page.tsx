@@ -110,9 +110,8 @@ export default function ChangePasswordPage() {
       setTimeout(() => {
         router.push('/');
       }, 1500);
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.');
-      console.error('Change password error:', error);
     } finally {
       setLoading(false);
     }

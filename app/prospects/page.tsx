@@ -22,8 +22,6 @@ const AddProspectModal = dynamic(() => import('@/components/AddProspectModal'), 
   ssr: false,
 });
 
-// ProspectCard is relatively light but can still benefit from memoization (already wrapped with React.memo)
-import ProspectCard from '@/components/ProspectCard';
 
 interface Prospect {
   id: string;
@@ -104,8 +102,8 @@ function ProspectsPageContent() {
           const data = await response.json();
           setStatusCounts((prev) => ({ ...prev, ...data }));
         }
-      } catch (error) {
-        console.error('Error loading lead status summary:', error);
+      } catch {
+        // Silently fail summary loading
       }
     };
 
@@ -199,8 +197,7 @@ function ProspectsPageContent() {
       }
       const data = await response.json();
       setProspects(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error loading prospects:', error);
+    } catch {
       showToast('Failed to load prospects. Please try again.', 'error');
       setProspects([]);
     } finally {
@@ -221,11 +218,9 @@ function ProspectsPageContent() {
         const data = await response.json();
         setLocations(Array.isArray(data) ? data : []);
       } else {
-        console.error('Failed to load locations:', response.status);
         setLocations([]);
       }
-    } catch (error) {
-      console.error('Error loading locations:', error);
+    } catch {
       setLocations([]);
     }
   };
@@ -502,8 +497,7 @@ function ProspectsPageContent() {
     setCurrentProspectForModal(null);
   };
 
-  const saveActivity = (activity: any) => {
-    console.log('Saving activity:', activity);
+  const saveActivity = () => {
     loadProspects(); // Reload prospects to reflect new activity
     closeActivityModal();
   };
@@ -581,8 +575,7 @@ function ProspectsPageContent() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error assigning:', error);
+    } catch {
       showToast('Error assigning prospect(s)', 'error');
     }
 
@@ -616,8 +609,7 @@ function ProspectsPageContent() {
       } else {
         showToast('Failed to update status', 'error');
       }
-    } catch (error) {
-      console.error('Error updating status:', error);
+    } catch {
       showToast('Error updating status', 'error');
     }
   };
@@ -648,8 +640,7 @@ function ProspectsPageContent() {
         } else {
           showToast('Failed to delete prospects', 'error');
         }
-      } catch (error) {
-        console.error('Error deleting prospects:', error);
+      } catch {
         showToast('Error deleting prospects', 'error');
       }
     }
@@ -667,7 +658,7 @@ function ProspectsPageContent() {
     setShowAddProspectModal(true);
   };
 
-  const handleProspectCreated = (data: any) => {
+  const handleProspectCreated = () => {
     showToast('Prospect created successfully!', 'success');
     loadProspects();
     setShowAddProspectModal(false);
@@ -693,8 +684,8 @@ function ProspectsPageContent() {
     setDetailsViewMode((prev) => (prev === 'popup' ? 'split' : 'popup'));
   };
 
-  const handleCall = (prospect: Prospect) => {
-    console.log('Call:', prospect);
+  const handleCall = () => {
+    // Handle call action
   };
 
   const handleEmail = (prospect: Prospect) => {

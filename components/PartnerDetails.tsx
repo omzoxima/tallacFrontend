@@ -84,13 +84,11 @@ export default function PartnerDetails({
   }, [partner.team_members]);
 
   const editTeamMember = (member: any) => {
-    console.log('Edit team member:', member);
     // TODO: Open edit modal or emit event to parent
     alert(`Edit team member: ${member.name}`);
   };
 
   const removeTeamMember = (member: any) => {
-    console.log('Remove team member:', member);
     // TODO: Confirm and remove team member
     if (confirm(`Remove ${member.name} from the team?`)) {
       alert(`Removing team member: ${member.name}`);

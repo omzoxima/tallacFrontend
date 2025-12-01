@@ -44,11 +44,9 @@ export default function AddProspectModal({ onClose, onSuccess, territories = [] 
       if (response.ok) {
         const data = await response.json();
         setCompanies(Array.isArray(data) ? data : []);
-      } else {
-        console.error('Failed to load companies:', response.status);
       }
-    } catch (error) {
-      console.error('Error loading companies:', error);
+    } catch {
+      // Silently fail companies loading
     }
   };
 
@@ -66,11 +64,9 @@ export default function AddProspectModal({ onClose, onSuccess, territories = [] 
       if (response.ok) {
         const data = await response.json();
         setContacts(Array.isArray(data) ? data : []);
-      } else {
-        console.error('Failed to load contacts:', response.status);
       }
-    } catch (error) {
-      console.error('Error loading contacts:', error);
+    } catch {
+      // Silently fail contacts loading
     }
   };
 
@@ -96,7 +92,7 @@ export default function AddProspectModal({ onClose, onSuccess, territories = [] 
   const filteredTerritories = useMemo(() => {
     if (territorySearch) {
       return territories.filter(t => {
-        const name = t.territory_name || t.name || '';
+        const name = t.territory_name || '';
         return name.toLowerCase().includes(territorySearch.toLowerCase());
       });
     }
@@ -182,9 +178,9 @@ export default function AddProspectModal({ onClose, onSuccess, territories = [] 
       showToast('Prospect created successfully!', 'success');
       onSuccess(data);
       onClose();
-    } catch (error: any) {
-      showToast(error.message || 'An unexpected error occurred', 'error');
-      console.error('Submit error:', error);
+    } catch (error: unknown) {
+      const errorMessage = (error instanceof Error && error.message) || 'An unexpected error occurred';
+      showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
