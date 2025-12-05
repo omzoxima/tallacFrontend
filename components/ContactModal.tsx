@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, User, Plus, Trash2, Phone, Mail } from 'lucide-react';
+import { X, User, Plus, Trash2, Phone, Mail, Building2, Users } from 'lucide-react';
 import { showToast } from './Toast';
 
 interface ContactModalProps {
@@ -23,13 +23,24 @@ export default function ContactModal({
 }: ContactModalProps) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [partners, setPartners] = useState<any[]>([]);
   const [form, setForm] = useState({
     full_name: '',
     designation: '',
     phones: [{ phone: '', is_primary_phone: 1 }],
     emails: [{ email_id: '', is_primary: 1 }],
     preferred_call_time: '',
+    organization_id: organizationId || '',
+    partner_id: '',
   });
+
+  useEffect(() => {
+    if (show) {
+      loadOrganizations();
+      loadPartners();
+    }
+  }, [show]);
 
   useEffect(() => {
     if (contactData && mode === 'edit') {
@@ -43,11 +54,13 @@ export default function ContactModal({
           ? contactData.email_ids.map((e: any) => ({ email_id: e.email_id, is_primary: e.is_primary ? 1 : 0 }))
           : [{ email_id: contactData.email || contactData.email_id || '', is_primary: 1 }],
         preferred_call_time: contactData.preferred_call_time || '',
+        organization_id: contactData.organization_id || organizationId || '',
+        partner_id: contactData.partner_id || '',
       });
     } else {
       resetForm();
     }
-  }, [contactData, mode, show]);
+  }, [contactData, mode, show, organizationId]);
 
   const resetForm = () => {
     setForm({
@@ -56,8 +69,51 @@ export default function ContactModal({
       phones: [{ phone: '', is_primary_phone: 1 }],
       emails: [{ email_id: '', is_primary: 1 }],
       preferred_call_time: '',
+      organization_id: organizationId || '',
+      partner_id: '',
     });
     setErrors({});
+  };
+
+  const loadOrganizations = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${apiUrl}/api/organizations?limit=1000`, { headers });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const data = result.data || result;
+        setOrganizations(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error loading organizations:', error);
+    }
+  };
+
+  const loadPartners = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${apiUrl}/api/partners?limit=1000`, { headers });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPartners(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error loading partners:', error);
+    }
   };
 
   const addPhone = () => {
@@ -205,6 +261,48 @@ export default function ContactModal({
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., Director of Operations"
             />
+          </div>
+
+          {/* Organization (Optional) */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              <Building2 className="w-4 h-4" />
+              Organization <span className="text-xs text-gray-500">(Optional)</span>
+            </label>
+            <select
+              value={form.organization_id}
+              onChange={(e) => setForm(prev => ({ ...prev, organization_id: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">-- No Organization --</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.organization_name || org.name} {org.city ? `(${org.city}, ${org.state})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Link this contact to a company</p>
+          </div>
+
+          {/* Partner (Optional) */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+              <Users className="w-4 h-4" />
+              Partner <span className="text-xs text-gray-500">(Optional)</span>
+            </label>
+            <select
+              value={form.partner_id}
+              onChange={(e) => setForm(prev => ({ ...prev, partner_id: e.target.value }))}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">-- No Partner --</option>
+              {partners.map((partner) => (
+                <option key={partner.id} value={partner.id}>
+                  {partner.partner_name || partner.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Link this contact to a partner organization</p>
           </div>
 
           {/* Mobile Numbers */}

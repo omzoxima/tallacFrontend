@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Header override - ensure proper colors */
+header, header * {
+    background-color: #38383880 !important;
+    color: #ffffff !important;
+}
+
 :root {
   /* Light mode defaults */
   --background: #f5f7fb;
@@ -80,10 +86,36 @@ body {
 :root:not(.dark) .border-gray-600 { border-color: rgb(124 124 124) !important; }
 
 /* Header should always be in light mode */
-header,
+header {
+  background-color: #ffffff !important;
+}
+
 header * {
   background-color: #ffffff !important;
   color: #1f2937 !important;
+}
+
+/* Exception for active call card - MUST come after header * to override */
+header .active-call-tile {
+  background-color: #059669 !important;
+  border-color: #059669 !important;
+  color: #000000 !important;
+}
+
+header .active-call-tile * {
+  background-color: transparent !important;
+  color: #000000 !important;
+}
+
+header .active-call-btn-red {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #000000 !important;
+}
+
+header .active-call-btn-red * {
+  background-color: transparent !important;
+  color: #000000 !important;
 }
 
 /* Exception for active navigation links */
@@ -288,5 +320,118 @@ h1, h2, h3, h4, h5, h6,
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* Call Outcome Modal - FORCE DARK THEME (override all global rules) */
+.modal-backdrop-overlay,
+.modal-backdrop-overlay *,
+.modal-content-box,
+.modal-content-box * {
+  background-color: unset !important;
+  color: unset !important;
+  border-color: unset !important;
+}
+
+.call-outcome-modal-overlay {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+}
+
+.call-outcome-modal {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}
+
+.call-outcome-modal * {
+  border-color: #374151 !important;
+}
+
+.call-outcome-modal .modal-title {
+  color: #ffffff !important;
+  background-color: transparent !important;
+}
+
+.call-outcome-modal .modal-subtitle {
+  color: #9ca3af !important;
+  background-color: transparent !important;
+}
+
+.call-outcome-modal .modal-label {
+  color: #9ca3af !important;
+  background-color: transparent !important;
+}
+
+.call-outcome-modal textarea,
+.call-outcome-modal input {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+  color: #e5e7eb !important;
+}
+
+.call-outcome-modal textarea::placeholder,
+.call-outcome-modal input::placeholder {
+  color: #6b7280 !important;
+}
+
+.call-outcome-modal button {
+  background-color: transparent !important;
+}
+
+.call-outcome-modal .outcome-btn {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+  color: #9ca3af !important;
+}
+
+.call-outcome-modal .outcome-btn:hover {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+}
+
+.call-outcome-modal .outcome-btn.selected {
+  border-color: #3b82f6 !important;
+}
+
+.call-outcome-modal .tag-btn {
+  background-color: #111827 !important;
+  border-color: #374151 !important;
+  color: #9ca3af !important;
+}
+
+.call-outcome-modal .tag-btn:hover {
+  background-color: #1f2937 !important;
+}
+
+.call-outcome-modal .action-btn-text {
+  color: #9ca3af !important;
+  background-color: transparent !important;
+}
+
+.call-outcome-modal .action-btn-text:hover {
+  color: #ffffff !important;
+}
+
+.call-outcome-modal .action-btn-save {
+  background-color: #7c3aed !important;
+  color: #ffffff !important;
+}
+
+.call-outcome-modal .action-btn-save:hover {
+  background-color: #6d28d9 !important;
+}
+
+.call-outcome-modal .action-btn-save:disabled {
+  background-color: #374151 !important;
+  color: #6b7280 !important;
+}
+
+/* FINAL OVERRIDE - MAXIMUM SPECIFICITY FOR MODAL */
+html body div.call-modal-overlay-xyz123 {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+html body div.call-modal-content-xyz123 {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
 }
 

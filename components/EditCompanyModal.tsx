@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Building2, MapPin, List } from 'lucide-react';
+import { X, Building2, MapPin, List, Plus, ChevronDown } from 'lucide-react';
 
 interface EditCompanyModalProps {
   show: boolean;
   companyData?: any;
+  mode?: 'create' | 'edit';
   onClose: () => void;
   onSave: (companyData: any) => void;
 }
@@ -13,49 +14,148 @@ interface EditCompanyModalProps {
 export default function EditCompanyModal({
   show,
   companyData,
+  mode = 'edit',
   onClose,
   onSave,
 }: EditCompanyModalProps) {
   const [activeTab, setActiveTab] = useState<'general' | 'location' | 'profile'>('general');
   const [saving, setSaving] = useState(false);
+  const [industries, setIndustries] = useState<any[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
   const [form, setForm] = useState({
-    company_name: '',
+    organization_name: '',
+    doing_business_as: '',
     industry: '',
-    website: '',
-    main_phone: '',
-    street_address: '',
+    organization_type: '',
+    status: 'Active',
+    address_line_1: '',
+    address_line_2: '',
+    zip_code: '',
     city: '',
     state: '',
-    zip_code: '',
-    employee_count: '',
-    annual_revenue: '',
-    social_profiles: [] as Array<{ platform: string; url: string }>,
+    territory_id: '',
+    truck_count: '',
+    driver_count: '',
+    employee_size: '',
+    revenue: '',
+    founded_date: '',
+    website: '',
+    main_phone: '',
+    email: '',
     overview: '',
+    social_profiles: [] as Array<{ platform: string; profile_url: string }>,
   });
 
+  // Load industries on mount
   useEffect(() => {
-    if (companyData && show) {
+    if (show) {
+      loadIndustries();
+    }
+  }, [show]);
+
+  useEffect(() => {
+    if (companyData && show && mode === 'edit') {
       setForm({
-        company_name: companyData.company_name || companyData.partner_name || '',
+        organization_name: companyData.organization_name || companyData.company_name || companyData.partner_name || '',
+        doing_business_as: companyData.doing_business_as || '',
         industry: companyData.industry || '',
-        website: companyData.website || '',
-        main_phone: companyData.main_phone || companyData.phone || '',
-        street_address: companyData.street_address || companyData.address || '',
+        organization_type: companyData.organization_type || '',
+        status: companyData.status || 'Active',
+        address_line_1: companyData.address_line_1 || companyData.street_address || companyData.address || '',
+        address_line_2: companyData.address_line_2 || '',
+        zip_code: companyData.zip_code || '',
         city: companyData.city || '',
         state: companyData.state || '',
-        zip_code: companyData.zip_code || '',
-        employee_count: companyData.employee_count || companyData.employee_size || '',
-        annual_revenue: companyData.annual_revenue || companyData.revenue || '',
-        social_profiles: companyData.social_profiles || [],
+        territory_id: companyData.territory_id || '',
+        truck_count: companyData.truck_count?.toString() || '',
+        driver_count: companyData.driver_count?.toString() || '',
+        employee_size: companyData.employee_size || companyData.employee_count || '',
+        revenue: companyData.revenue || companyData.annual_revenue || '',
+        founded_date: companyData.founded_date || '',
+        website: companyData.website || '',
+        main_phone: companyData.main_phone || companyData.phone || '',
+        email: companyData.email || '',
         overview: companyData.overview || '',
+        social_profiles: companyData.social_profiles || [],
+      });
+    } else if (mode === 'create') {
+      // Reset form for create mode
+      setForm({
+        organization_name: '',
+        doing_business_as: '',
+        industry: '',
+        organization_type: '',
+        status: 'Active',
+        address_line_1: '',
+        address_line_2: '',
+        zip_code: '',
+        city: '',
+        state: '',
+        territory_id: '',
+        truck_count: '',
+        driver_count: '',
+        employee_size: '',
+        revenue: '',
+        founded_date: '',
+        website: '',
+        main_phone: '',
+        email: '',
+        overview: '',
+        social_profiles: [],
       });
     }
-  }, [companyData, show]);
+  }, [companyData, show, mode]);
+
+  const loadIndustries = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${apiUrl}/api/industries`, { headers });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setIndustries(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading industries:', error);
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!form.organization_name || !form.organization_name.trim()) {
+      newErrors.organization_name = 'Organization name is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSave = async () => {
+    if (!validateForm()) {
+      // Switch to tab with error
+      if (errors.organization_name) setActiveTab('general');
+      return;
+    }
+    
     setSaving(true);
     try {
-      await onSave(form);
+      // Clean up data before saving
+      const dataToSave = {
+        ...form,
+        truck_count: form.truck_count ? parseInt(form.truck_count) : null,
+        driver_count: form.driver_count ? parseInt(form.driver_count) : null,
+        social_profiles: form.social_profiles.filter(p => p.platform && p.profile_url),
+      };
+      
+      await onSave(dataToSave);
     } finally {
       setSaving(false);
     }
@@ -64,7 +164,7 @@ export default function EditCompanyModal({
   const addSocialProfile = () => {
     setForm(prev => ({
       ...prev,
-      social_profiles: [...prev.social_profiles, { platform: 'Website', url: '' }],
+      social_profiles: [...prev.social_profiles, { platform: 'Website', profile_url: '' }],
     }));
   };
 
@@ -75,7 +175,7 @@ export default function EditCompanyModal({
     }));
   };
 
-  const updateSocialProfile = (index: number, field: 'platform' | 'url', value: string) => {
+  const updateSocialProfile = (index: number, field: 'platform' | 'profile_url', value: string) => {
     setForm(prev => {
       const newProfiles = [...prev.social_profiles];
       newProfiles[index] = { ...newProfiles[index], [field]: value };
@@ -92,8 +192,12 @@ export default function EditCompanyModal({
         <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-white">Edit Company</h3>
-              <p className="text-sm text-gray-400 mt-1">Update company details</p>
+              <h3 className="text-xl font-bold text-white">
+                {mode === 'create' ? 'Create Company' : 'Edit Company'}
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">
+                {mode === 'create' ? 'Add a new company to the database' : 'Update company details'}
+              </p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
               <X className="w-5 h-5" />
@@ -151,30 +255,87 @@ export default function EditCompanyModal({
                 </label>
                 <input
                   type="text"
-                  value={form.company_name}
-                  onChange={(e) => setForm(prev => ({ ...prev, company_name: e.target.value }))}
+                  value={form.organization_name}
+                  onChange={(e) => {
+                    setForm(prev => ({ ...prev, organization_name: e.target.value }));
+                    if (errors.organization_name) {
+                      setErrors(prev => ({ ...prev, organization_name: '' }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 bg-gray-700 border rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.organization_name ? 'border-red-500' : 'border-gray-600'
+                  }`}
+                  placeholder="e.g. Northern Logistics Inc."
+                />
+                {errors.organization_name && (
+                  <p className="text-red-400 text-xs mt-1">{errors.organization_name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Doing Business As (DBA)</label>
+                <input
+                  type="text"
+                  value={form.doing_business_as}
+                  onChange={(e) => setForm(prev => ({ ...prev, doing_business_as: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter company name"
+                  placeholder="e.g. NorthLog"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Industry</label>
+                  <select
+                    value={form.industry}
+                    onChange={(e) => setForm(prev => ({ ...prev, industry: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Industry</option>
+                    {industries.map((ind) => (
+                      <option key={ind.id} value={ind.industry_code}>
+                        {ind.industry_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Organization Type</label>
+                  <select
+                    value={form.organization_type}
+                    onChange={(e) => setForm(prev => ({ ...prev, organization_type: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Sole Proprietorship">Sole Proprietorship</option>
+                    <option value="Partnership">Partnership</option>
+                    <option value="LLC">LLC</option>
+                    <option value="Corporation">Corporation</option>
+                    <option value="S-Corporation">S-Corporation</option>
+                    <option value="Non-Profit">Non-Profit</option>
+                    <option value="Government">Government</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Industry</label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Status</label>
                 <select
-                  value={form.industry}
-                  onChange={(e) => setForm(prev => ({ ...prev, industry: e.target.value }))}
+                  value={form.status}
+                  onChange={(e) => setForm(prev => ({ ...prev, status: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">Select Industry</option>
-                  <option value="Hospitality">Hospitality</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Manufacturing">Manufacturing</option>
-                  <option value="Retail">Retail</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Education">Education</option>
-                  <option value="Other">Other</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Prospect">Prospect</option>
+                  <option value="Customer">Customer</option>
+                  <option value="Former Customer">Former Customer</option>
+                  <option value="Do Not Contact">Do Not Contact</option>
                 </select>
               </div>
+
               <div>
                 <label className="text-sm font-medium text-gray-300 mb-2 block">Website</label>
                 <div className="relative">
@@ -190,19 +351,38 @@ export default function EditCompanyModal({
                   />
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Main Phone (Office)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    📞
-                  </span>
-                  <input
-                    type="tel"
-                    value={form.main_phone}
-                    onChange={(e) => setForm(prev => ({ ...prev, main_phone: e.target.value }))}
-                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g. +1 555 123 4567"
-                  />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Main Phone</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                      📞
+                    </span>
+                    <input
+                      type="tel"
+                      value={form.main_phone}
+                      onChange={(e) => setForm(prev => ({ ...prev, main_phone: e.target.value }))}
+                      className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="+1 555 123 4567"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Email</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                      ✉️
+                    </span>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="info@company.com"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -212,31 +392,52 @@ export default function EditCompanyModal({
           {activeTab === 'location' && (
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Street Address</label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Address Line 1</label>
                 <input
                   type="text"
-                  value={form.street_address}
-                  onChange={(e) => setForm(prev => ({ ...prev, street_address: e.target.value }))}
+                  value={form.address_line_1}
+                  onChange={(e) => setForm(prev => ({ ...prev, address_line_1: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter street address"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">
-                  City <span className="text-red-400">*</span>
-                </label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Address Line 2 (Suite/Unit)</label>
                 <input
                   type="text"
-                  value={form.city}
-                  onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))}
+                  value={form.address_line_2}
+                  onChange={(e) => setForm(prev => ({ ...prev, address_line_2: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter city"
+                  placeholder="Suite, Unit, Building, Floor, etc."
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Zip Code</label>
+                  <input
+                    type="text"
+                    value={form.zip_code}
+                    onChange={(e) => setForm(prev => ({ ...prev, zip_code: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter zip code"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">City</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => setForm(prev => ({ ...prev, city: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter city"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">
-                  State <span className="text-red-400">*</span>
-                </label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">State</label>
                 <select
                   value={form.state}
                   onChange={(e) => setForm(prev => ({ ...prev, state: e.target.value }))}
@@ -295,52 +496,80 @@ export default function EditCompanyModal({
                   <option value="WY">WY</option>
                 </select>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">
-                  Zip Code <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.zip_code}
-                  onChange={(e) => setForm(prev => ({ ...prev, zip_code: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter zip code"
-                />
-              </div>
             </div>
           )}
 
           {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Employee Count</label>
-                <select
-                  value={form.employee_count}
-                  onChange={(e) => setForm(prev => ({ ...prev, employee_count: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Range</option>
-                  <option value="1-10">1-10</option>
-                  <option value="11-50">11-50</option>
-                  <option value="51-200">51-200</option>
-                  <option value="201-500">201-500</option>
-                  <option value="501-1000">501-1000</option>
-                  <option value="1000+">1000+</option>
-                </select>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Number of Trucks</label>
+                  <input
+                    type="number"
+                    value={form.truck_count}
+                    onChange={(e) => setForm(prev => ({ ...prev, truck_count: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Number of Drivers</label>
+                  <input
+                    type="number"
+                    value={form.driver_count}
+                    onChange={(e) => setForm(prev => ({ ...prev, driver_count: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Employee Size</label>
+                  <select
+                    value={form.employee_size}
+                    onChange={(e) => setForm(prev => ({ ...prev, employee_size: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select Range</option>
+                    <option value="1-10">1-10</option>
+                    <option value="11-50">11-50</option>
+                    <option value="51-200">51-200</option>
+                    <option value="201-500">201-500</option>
+                    <option value="501-1000">501-1000</option>
+                    <option value="1000+">1000+</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Annual Revenue</label>
-                <input
-                  type="text"
-                  value={form.annual_revenue}
-                  onChange={(e) => setForm(prev => ({ ...prev, annual_revenue: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="$1M - $5M"
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Revenue</label>
+                  <input
+                    type="text"
+                    value={form.revenue}
+                    onChange={(e) => setForm(prev => ({ ...prev, revenue: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="$1M - $5M"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Founded Date</label>
+                  <input
+                    type="date"
+                    value={form.founded_date}
+                    onChange={(e) => setForm(prev => ({ ...prev, founded_date: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Social Profiles</label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Social Profiles & Links</label>
                 <div className="space-y-2">
                   {form.social_profiles.map((profile, index) => (
                     <div key={index} className="flex gap-2">
@@ -359,8 +588,8 @@ export default function EditCompanyModal({
                       </select>
                       <input
                         type="url"
-                        value={profile.url}
-                        onChange={(e) => updateSocialProfile(index, 'url', e.target.value)}
+                        value={profile.profile_url}
+                        onChange={(e) => updateSocialProfile(index, 'profile_url', e.target.value)}
                         className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="https://linkedin.com/company/..."
                       />
@@ -376,18 +605,20 @@ export default function EditCompanyModal({
                     onClick={addSocialProfile}
                     className="flex items-center gap-1.5 px-3 py-2 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
                   >
-                    + Add Profile URL
+                    <Plus className="w-4 h-4" />
+                    Add Profile URL
                   </button>
                 </div>
               </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-2 block">Overview / About Us</label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Overview / About Company</label>
                 <textarea
                   value={form.overview}
                   onChange={(e) => setForm(prev => ({ ...prev, overview: e.target.value }))}
-                  rows={4}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter company overview"
+                  rows={5}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  placeholder="Enter company overview, description, or notes..."
                 />
               </div>
             </div>
@@ -404,10 +635,13 @@ export default function EditCompanyModal({
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+            className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all font-medium shadow-lg shadow-green-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving && (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            )}
+            <span>{mode === 'create' ? (saving ? 'Creating...' : 'Create & Attach') : (saving ? 'Saving...' : 'Save Changes')}</span>
           </button>
         </div>
       </div>

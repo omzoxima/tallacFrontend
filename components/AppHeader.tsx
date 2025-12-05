@@ -77,7 +77,7 @@ export default function AppHeader() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-white border-gray-200">
+    <header className="sticky top-0 z-50 border-b bg-white border-gray-200 shadow-sm">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Navigation - Left Side */}
@@ -104,7 +104,7 @@ export default function AppHeader() {
             </Link>
 
             {/* Navigation - Desktop Only */}
-            <nav className="hidden md:flex items-center gap-2">
+            <nav className="hidden md:flex items-center gap-1">
               {visibleNavItems.map((item) => {
                 const isActive = item.route === '/' 
                   ? pathname === '/' 
@@ -113,17 +113,13 @@ export default function AppHeader() {
                   <Link
                     key={item.route}
                     href={item.route}
-                    className={`relative px-4 py-2 rounded-md text-sm font-medium transition-all nav-link ${
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
                       isActive
-                        ? 'nav-link-active !text-white font-semibold shadow-md'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? '!text-blue-600 bg-blue-50 rounded-md'
+                        : 'text-gray-600 hover:text-gray-900'
                     }`}
-                    style={isActive ? { backgroundColor: '#525252', color: '#ffffff' } : undefined}
                   >
                     {item.name}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-12 h-1.5 rounded-full z-10 shadow-sm" style={{ backgroundColor: '#22c55e' }} />
-                    )}
                   </Link>
                 );
               })}
@@ -132,8 +128,9 @@ export default function AppHeader() {
 
           {/* User Menu - Right Side */}
           <div className="flex items-center gap-4">
-            {/* Active call pill (if any) */}
+            {/* Active Call Card - Green Tile with Timer and Red End Button */}
             <ActiveCallCard />
+            
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -178,13 +175,13 @@ export default function AppHeader() {
           </div>
         </div>
 
-        {/* Global Call Outcome Modal */}
+        {/* Call Outcome Modal */}
         <RecordCallOutcomeModal />
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white">
-            <nav className="px-4 py-3 space-y-1">
+            <nav className="px-4 py-3 space-y-2">
               {visibleNavItems.map((item) => {
                 const isActive = item.route === '/' 
                   ? pathname === '/' 
@@ -193,17 +190,13 @@ export default function AppHeader() {
                   <Link
                     key={item.route}
                     href={item.route}
-                    className={`relative block px-4 py-3 rounded-md text-base font-medium transition-all nav-link ${
+                    className={`block px-5 py-2.5 rounded-md text-base font-semibold transition-all ${
                       isActive
-                        ? 'nav-link-active !text-white font-semibold shadow-md'
+                        ? '!text-blue-600 bg-blue-50'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
-                    style={isActive ? { backgroundColor: '#525252', color: '#ffffff' } : undefined}
                   >
                     {item.name}
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 transform -translate-y-1/2 w-2 h-12 rounded-r-full z-10 shadow-sm" style={{ backgroundColor: '#22c55e' }} />
-                    )}
                   </Link>
                 );
               })}

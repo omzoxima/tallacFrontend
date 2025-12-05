@@ -86,27 +86,28 @@ function ProspectsPageContent() {
   const [locations, setLocations] = useState<any[]>([]);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
+  // Load status counts function
+  const loadStatusCounts = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/api/leads/summary`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStatusCounts((prev) => ({ ...prev, ...data }));
+      }
+    } catch {
+      // Silently fail summary loading
+    }
+  };
+
   // Load status counts once on mount (independent of filters)
   useEffect(() => {
-    const loadStatusCounts = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${apiUrl}/api/leads/summary`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setStatusCounts((prev) => ({ ...prev, ...data }));
-        }
-      } catch {
-        // Silently fail summary loading
-      }
-    };
-
     loadStatusCounts();
   }, []);
 
@@ -282,14 +283,14 @@ function ProspectsPageContent() {
 
   const getCardBorderClass = (status: string) => {
     const statusMap: Record<string, string> = {
-      proposal: 'border-transparent hover:border-orange-500',
-      contacted: 'border-transparent hover:border-blue-500',
-      interested: 'border-transparent hover:border-yellow-500',
-      lost: 'border-red-600 opacity-70',
-      won: 'border-transparent hover:border-green-500',
-      new: 'border-transparent hover:border-blue-500',
+      proposal: 'border-transparent hover:!border-orange-600',
+      contacted: 'border-transparent hover:!border-purple-600',
+      interested: 'border-transparent hover:!border-yellow-600',
+      lost: '!border-red-600 opacity-70',
+      won: 'border-transparent hover:!border-green-600',
+      new: 'border-transparent hover:!border-blue-600',
     };
-    return statusMap[status?.toLowerCase()] || 'border-transparent hover:border-blue-500';
+    return statusMap[status?.toLowerCase()] || 'border-transparent hover:!border-blue-600';
   };
 
   const getQueueStatusClass = (queueStatus?: string) => {
@@ -752,6 +753,41 @@ function ProspectsPageContent() {
   };
 
   const bulkUpdateStatus = async (newStatus: string) => {
+    // Handle single prospect status change
+    if (currentProspect && !isBulkSelectMode) {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const token = localStorage.getItem('token');
+        const leadId = currentProspect.id;
+        
+        const response = await fetch(
+          `${apiUrl}/api/leads/${leadId}/status`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus }),
+          }
+        );
+        
+        if (response.ok) {
+          showToast(`Updated ${currentProspect.company_name} to ${newStatus}`, 'success');
+          loadProspects();
+          loadStatusCounts();
+          setShowStatusModal(false);
+          setCurrentProspect(null);
+        } else {
+          showToast('Failed to update status', 'error');
+        }
+      } catch {
+        showToast('Error updating status', 'error');
+      }
+      return;
+    }
+
+    // Handle bulk status change
     if (selectedProspects.size === 0) return;
 
     try {
@@ -773,6 +809,7 @@ function ProspectsPageContent() {
         showToast(`Updated ${result.count} prospect(s) to ${newStatus}`, 'success');
         // Reload prospects to reflect changes
         loadProspects();
+        loadStatusCounts();
         setShowStatusModal(false);
         exitBulkSelectMode();
       } else {
@@ -829,7 +866,8 @@ function ProspectsPageContent() {
 
   const handleProspectCreated = () => {
     showToast('Prospect created successfully!', 'success');
-    loadProspects();
+    loadProspects(); // Reload prospects list
+    loadStatusCounts(); // Refresh counts (New, Contacted, etc.)
     setShowAddProspectModal(false);
   };
 
@@ -871,7 +909,7 @@ function ProspectsPageContent() {
         <div className="max-w-7xl mx-auto w-full">
           {/* Active Filter Chips Bar (when filters are applied) */}
           {hasActiveFilters && !isBulkSelectMode && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-gray-800 dark:bg-gray-800 bg-white rounded-lg mb-4 border border-gray-700 dark:border-gray-700 border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-gray-800 dark:bg-gray-800 bg-white rounded-xl mb-4 border border-gray-700 dark:border-gray-700 border-gray-200">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-gray-400 dark:text-gray-400 text-gray-600 mr-2 flex-shrink-0">Active Filters:</span>
                 <div className="flex flex-wrap gap-2 items-center">
@@ -909,7 +947,7 @@ function ProspectsPageContent() {
 
           {/* Bulk Action Bar (when in selection mode) */}
           {isBulkSelectMode && (
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg mb-4 border border-gray-700 dark:border-gray-700 border-gray-200">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-gray-800 dark:bg-gray-800 bg-white rounded-xl shadow-lg mb-4 border border-gray-700 dark:border-gray-700 border-gray-200">
               <div className="flex items-center gap-4 w-full md:w-auto">
                 <input
                   type="checkbox"
@@ -931,7 +969,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={openAssignModalForBulk}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-xl text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.987 6.987 0 0010 16.5a6.987 6.987 0 004.793-2.11A5.99 5.99 0 0010 12z" clipRule="evenodd" />
@@ -945,7 +983,7 @@ function ProspectsPageContent() {
                     }
                   }}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-lg text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 dark:border-gray-500 border-gray-300 text-gray-300 dark:text-gray-300 text-gray-700 font-medium rounded-xl text-sm hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-3.5-5 3.5V4z" />
@@ -955,7 +993,7 @@ function ProspectsPageContent() {
                 <button
                   onClick={bulkDelete}
                   disabled={selectedProspects.size === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-800 text-white font-medium rounded-lg text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-800 text-white font-medium rounded-xl text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 009 2zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -964,7 +1002,7 @@ function ProspectsPageContent() {
                 </button>
                 <button
                   onClick={exitBulkSelectMode}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-600"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-500 text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-600"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -982,8 +1020,8 @@ function ProspectsPageContent() {
               <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                 <button
                   onClick={() => setActiveFilter('queue')}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700'
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl whitespace-nowrap transition-colors ${
+                    activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
                   }`}
                 >
                   Queue
@@ -998,8 +1036,8 @@ function ProspectsPageContent() {
 
                 <button
                   onClick={() => setActiveFilter('scheduled')}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
-                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700'
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl whitespace-nowrap transition-colors ${
+                    activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
                   }`}
                 >
                   Scheduled
@@ -1014,7 +1052,7 @@ function ProspectsPageContent() {
 
                 <button
                   onClick={() => setActiveFilter('all')}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl whitespace-nowrap transition-colors ${
                     activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700'
                   }`}
                 >
@@ -1028,7 +1066,7 @@ function ProspectsPageContent() {
               </div>
 
               {/* Pipeline Status Bar - Compact on Mobile */}
-              <div className="flex h-8 bg-gray-700/50 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="flex h-8 bg-gray-700/50 dark:bg-gray-700/50 bg-gray-100 rounded-xl overflow-hidden">
                 {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
                   const count = statusCounts[status as keyof typeof statusCounts] || 0;
                   const statusColors: Record<string, string> = {
@@ -1063,8 +1101,8 @@ function ProspectsPageContent() {
               {/* Queue Filter Button */}
               <button
                 onClick={() => setActiveFilter('queue')}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-red-700 focus:outline-none transition-colors ${
-                  activeFilter === 'queue' ? 'bg-red-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl hover:bg-red-700 focus:outline-none transition-colors ${
+                  activeFilter === 'queue' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
                 }`}
               >
                 Queue
@@ -1080,8 +1118,8 @@ function ProspectsPageContent() {
               {/* Scheduled Filter Button */}
               <button
                 onClick={() => setActiveFilter('scheduled')}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
-                  activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'dark:bg-gray-700 bg-gray-100 dark:text-gray-300 text-gray-700'
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl hover:bg-blue-700 focus:outline-none transition-colors ${
+                  activeFilter === 'scheduled' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
                 }`}
               >
                 Scheduled
@@ -1095,7 +1133,7 @@ function ProspectsPageContent() {
               </button>
 
               {/* Proportional Pipeline Bar */}
-              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 bg-gray-700/50 dark:bg-gray-700/50 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="flex flex-1 min-w-0 sm:min-w-[300px] lg:min-w-[400px] h-10 bg-gray-700/50 dark:bg-gray-700/50 bg-gray-100 rounded-xl overflow-hidden">
                 {['new', 'contacted', 'interested', 'proposal', 'won', 'lost'].map((status) => {
                   const count = statusCounts[status as keyof typeof statusCounts] || 0;
                   const statusColors: Record<string, string> = {
@@ -1125,7 +1163,7 @@ function ProspectsPageContent() {
               {/* All Filter Button */}
               <button
                 onClick={() => setActiveFilter('all')}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-xl hover:bg-blue-700 focus:outline-none transition-colors ${
                   activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
                 }`}
               >
@@ -1232,14 +1270,14 @@ function ProspectsPageContent() {
                       placeholder="Search..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
+                      className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full py-2.5 pl-10 pr-3 placeholder-gray-400"
                       aria-label="Search prospects"
                     />
                   </div>
                   <Tooltip text="Open advanced filters">
                     <button
                       onClick={() => setShowFilterModal(true)}
-                      className="flex items-center gap-2 px-4 py-2.5 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700"
+                      className="flex items-center gap-2 px-4 py-2.5 border border-gray-600 text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-700"
                       aria-label="Open advanced filters"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -1255,7 +1293,7 @@ function ProspectsPageContent() {
                 <Tooltip text="Select prospects">
                   <button
                     onClick={enterBulkSelectMode}
-                    className="flex items-center justify-center p-2.5 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700 min-h-[44px] min-w-[44px] touch-manipulation"
+                    className="flex items-center justify-center p-2.5 border border-gray-600 text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-700 min-h-[44px] min-w-[44px] touch-manipulation"
                     aria-label="Select prospects"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -1266,7 +1304,7 @@ function ProspectsPageContent() {
                 <Tooltip text="Create new prospect">
                   <button
                     onClick={createNewProspect}
-                    className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg text-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 whitespace-nowrap touch-manipulation"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl text-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 whitespace-nowrap touch-manipulation"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -1279,7 +1317,7 @@ function ProspectsPageContent() {
                 <div className="h-6 w-px bg-gray-600 hidden md:block"></div>
 
                 {/* Pagination & Refresh Controls */}
-                <div className="flex items-center rounded-lg border border-gray-600 shadow-sm overflow-hidden h-10">
+                <div className="flex items-center rounded-xl border border-gray-600 shadow-sm overflow-hidden h-10">
                   <Tooltip text="Number of items per page">
                     <select
                       value={pageSize}
@@ -1305,7 +1343,7 @@ function ProspectsPageContent() {
                 </div>
 
                 {/* Sort Dropdown */}
-                <div className="flex items-center rounded-lg border border-gray-600 shadow-sm overflow-hidden h-10">
+                <div className="flex items-center rounded-xl border border-gray-600 shadow-sm overflow-hidden h-10">
                   <Tooltip text="Sort prospects by">
                     <select
                       value={sortColumn}
@@ -1336,7 +1374,7 @@ function ProspectsPageContent() {
                 </div>
 
                 {/* Unified View Controls */}
-                <div className="flex items-center rounded-lg border border-gray-600 shadow-sm overflow-hidden h-10">
+                <div className="flex items-center rounded-xl border border-gray-600 shadow-sm overflow-hidden h-10">
                   {/* Grid/List Toggle */}
                   <Tooltip text={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}>
                     <button
@@ -1388,7 +1426,7 @@ function ProspectsPageContent() {
                   <p className="text-gray-400">Loading prospects...</p>
                 </div>
               ) : paginatedProspects.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 rounded-lg">
+                <div className="flex flex-col items-center justify-center py-20 rounded-xl">
                   <div className="text-center">
                     <svg className="mx-auto h-16 w-16 text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
@@ -1403,10 +1441,10 @@ function ProspectsPageContent() {
                     <div
                       key={prospect.id || prospect.name}
                       onClick={() => handleProspectCardClick(prospect)}
-                      className={`bg-gray-800 dark:bg-gray-800 bg-white rounded-lg shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
+                      className={`bg-gray-800 rounded-xl shadow-lg flex flex-col transition-all duration-200 hover:shadow-xl border-2 cursor-pointer w-full relative ${
                         getCardBorderClass(prospect.status)
-                      } ${isSelected(prospect.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-700 dark:border-gray-700 border-gray-200'} ${
-                        selectedProspect?.id === prospect.id && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-green-500 border-green-500' : ''
+                      } ${isSelected(prospect.id) ? 'ring-2 ring-blue-500 !border-blue-500' : ''} ${
+                        selectedProspect?.id === prospect.id && showProspectDetails && !isBulkSelectMode ? 'ring-2 ring-indigo-500 !border-indigo-500' : ''
                       }`}
                     >
                       {isBulkSelectMode && (
@@ -1460,31 +1498,15 @@ function ProspectsPageContent() {
 
                       <div className="px-4 pb-4 border-b border-gray-700 dark:border-gray-700 border-gray-200 space-y-3">
                         <div className="flex justify-between items-start">
-                          <div className="flex items-start">
-                            <svg className="w-4 h-4 dark:text-gray-400 text-gray-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex items-start gap-2">
+                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
-                            <div className="ml-1.5">
-                              <p className="text-base font-medium text-white dark:text-white text-gray-900">{prospect.lead_name || 'No Contact'}</p>
-                              <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">{prospect.title || 'Contact'}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-medium text-white truncate">{prospect.lead_name || 'No Contact'}</p>
+                              <p className="text-sm text-gray-400 truncate">{prospect.title || 'Contact'}</p>
                             </div>
                           </div>
-                          {prospect.contact_path && prospect.contact_path.length > 0 && (
-                            <div className="flex-shrink-0 text-right space-y-1">
-                              <div className="h-5"></div>
-                              <div className="flex items-center justify-end -space-x-2">
-                                {prospect.contact_path.slice(0, 3).map((contact, index) => (
-                                  <div
-                                    key={index}
-                                    className={`w-6 h-6 rounded-full border-2 border-gray-800 flex items-center justify-center text-xs font-bold ${getContactPathClass(contact.status)}`}
-                                    title={`${contact.name} - ${contact.status}`}
-                                  >
-                                    {getInitials(contact.name)}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                         {prospect.queue_status && prospect.queue_status !== 'none' && (
                           <p className={`text-sm flex items-center ${getQueueStatusClass(prospect.queue_status)}`}>
@@ -1498,45 +1520,71 @@ function ProspectsPageContent() {
                         )}
                       </div>
 
-                      <div className="p-2 bg-gray-900/50 dark:bg-gray-900/50 bg-gray-50/50 backdrop-blur-sm border-t border-gray-700/50 dark:border-gray-700/50 border-gray-200/50 mt-auto">
-                        <div className="grid grid-cols-3 gap-1">
+                      <div 
+                        className="p-2 backdrop-blur-sm mt-auto overflow-hidden"
+                        style={{
+                          backgroundColor: '#17171780',
+                          borderTop: '1px solid #52525280',
+                          borderBottomLeftRadius: '0.5rem',
+                          borderBottomRightRadius: '0.5rem'
+                        }}
+                      >
+                        <div className="grid grid-cols-3 gap-2">
                           <Tooltip text="Log Call">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-green-600/20 dark:text-gray-300 text-gray-700 hover:text-green-600 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-green-600/30"
+                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-green-600/20 text-gray-300 hover:text-green-400 text-xs font-medium transition-all duration-200 border border-transparent hover:border-green-600/30"
+                              style={{ borderRadius: '0.375rem' }}
                             >
-                              <div className="absolute inset-0 bg-gradient-to-r from-green-600/0 via-green-600/5 to-green-600/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"></div>
-                              <Phone className="w-4 h-4 relative z-10" />
-                              <span className="relative z-10 hidden sm:inline">Call</span>
+                              <div 
+                                className="absolute inset-0 bg-gradient-to-r from-green-600/0 via-green-600/5 to-green-600/0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                style={{ borderRadius: '0.375rem' }}
+                              ></div>
+                              <Phone className="w-4 h-4 relative z-10 flex-shrink-0" />
+                              <span className="relative z-10 hidden sm:inline whitespace-nowrap">Call</span>
                             </button>
                           </Tooltip>
-                          <Tooltip text="Create Task">
+                          <Tooltip text="Schedule Activity">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openActivityModalForProspect(prospect);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-blue-600/20 dark:text-gray-300 text-gray-700 hover:text-blue-600 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-blue-600/30"
+                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-blue-600/20 text-gray-300 hover:text-blue-400 text-xs font-medium transition-all duration-200 border border-transparent hover:border-blue-600/30"
+                              style={{ borderRadius: '0.375rem' }}
                             >
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"></div>
-                              <Plus className="w-4 h-4 relative z-10" />
-                              <span className="relative z-10 hidden sm:inline">Task</span>
+                              <div 
+                                className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-600/5 to-blue-600/0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                style={{ borderRadius: '0.375rem' }}
+                              ></div>
+                              <svg className="w-4 h-4 relative z-10 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                              </svg>
+                              <span className="relative z-10 hidden sm:inline whitespace-nowrap">Schedule</span>
                             </button>
                           </Tooltip>
-                          <Tooltip text="Log Activity">
+                          <Tooltip text="Change Status">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openActivityModalForProspect(prospect);
+                                setCurrentProspect(prospect);
+                                setShowStatusModal(true);
                               }}
-                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-purple-600/20 dark:text-gray-300 text-gray-700 hover:text-purple-600 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-purple-600/30"
+                              className="group relative flex items-center justify-center gap-1.5 px-3 py-2 bg-transparent hover:bg-yellow-600/20 text-gray-300 hover:text-yellow-400 text-xs font-medium transition-all duration-200 border border-transparent hover:border-yellow-600/30"
+                              style={{ borderRadius: '0.375rem' }}
                             >
-                              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-purple-600/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"></div>
-                              <FileText className="w-4 h-4 relative z-10" />
-                              <span className="relative z-10 hidden sm:inline">Log</span>
+                              <div 
+                                className="absolute inset-0 bg-gradient-to-r from-yellow-600/0 via-yellow-600/5 to-yellow-600/0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                style={{ borderRadius: '0.375rem' }}
+                              ></div>
+                              <svg className="w-4 h-4 relative z-10 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                              </svg>
+                              <span className="relative z-10 hidden sm:inline whitespace-nowrap">Status</span>
                             </button>
                           </Tooltip>
                         </div>
@@ -1613,7 +1661,7 @@ function ProspectsPageContent() {
           onClick={closeAssignModal}
         >
           <div
-            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
+            className="bg-gray-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 border-gray-200">
@@ -1637,7 +1685,7 @@ function ProspectsPageContent() {
                   value={repSearchQuery}
                   onChange={(e) => setRepSearchQuery(e.target.value)}
                   placeholder="Search users by name or email..."
-                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-4 py-2.5 placeholder-gray-400"
+                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-4 py-2.5 placeholder-gray-400"
                   autoFocus
                 />
               </div>
@@ -1659,7 +1707,7 @@ function ProspectsPageContent() {
                     <li
                       key={rep.id || rep.email}
                       onClick={() => assignToRep(rep)}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-700 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold shadow-md flex-shrink-0">
@@ -1679,7 +1727,7 @@ function ProspectsPageContent() {
                   ))}
                   <li
                     onClick={() => assignToRep(null)}
-                    className="flex items-center p-3 rounded-lg hover:bg-gray-700 cursor-pointer transition-colors border-t border-gray-700 pt-3"
+                    className="flex items-center p-3 rounded-xl hover:bg-gray-700 cursor-pointer transition-colors border-t border-gray-700 pt-3"
                   >
                     <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 text-gray-400 flex-shrink-0">
                       <X className="w-5 h-5" />
@@ -1700,7 +1748,7 @@ function ProspectsPageContent() {
           onClick={() => setShowFilterModal(false)}
         >
           <div
-            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
+            className="bg-gray-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 border-gray-200">
@@ -1715,7 +1763,7 @@ function ProspectsPageContent() {
                 <select
                   value={territoryFilter}
                   onChange={(e) => setTerritoryFilter(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                 >
                   <option value="">All Territories</option>
                   {locations.map((location) => (
@@ -1730,7 +1778,7 @@ function ProspectsPageContent() {
                 <select
                   value={industryFilter}
                   onChange={(e) => setIndustryFilter(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                 >
                   <option value="">All Industries</option>
                   <option value="Logistics">Logistics</option>
@@ -1750,7 +1798,7 @@ function ProspectsPageContent() {
                 <select
                   value={ownerFilter}
                   onChange={(e) => setOwnerFilter(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  className="bg-gray-700 border border-gray-600 text-gray-200 rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                 >
                   <option value="">All Owners</option>
                   <option value="Calvin M.">Calvin M.</option>
@@ -1763,13 +1811,13 @@ function ProspectsPageContent() {
             <div className="flex justify-between items-center p-4 border-t dark:border-gray-700 border-gray-200 dark:bg-gray-800/50 bg-gray-50 rounded-b-lg">
               <button
                 onClick={clearAllFilters}
-                className="px-4 py-2 border border-gray-600 text-gray-300 font-medium rounded-lg text-sm hover:bg-gray-700"
+                className="px-4 py-2 border border-gray-600 text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-700"
               >
                 Clear All
               </button>
               <button
                 onClick={() => setShowFilterModal(false)}
-                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg text-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-800"
+                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-xl text-sm hover:bg-blue-700 focus:ring-4 focus:ring-blue-800"
               >
                 Apply Filters
               </button>
@@ -1785,12 +1833,22 @@ function ProspectsPageContent() {
           onClick={() => setShowStatusModal(false)}
         >
           <div
-            className="bg-gray-800 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
+            className="bg-gray-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 border-gray-200">
-              <h3 className="text-lg font-medium text-white">Change Status ({selectedProspects.size} prospects)</h3>
-              <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-white">
+              <h3 className="text-lg font-medium text-white">
+                Change Status {currentProspect && !isBulkSelectMode 
+                  ? `- ${currentProspect.company_name}` 
+                  : `(${selectedProspects.size} prospects)`}
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowStatusModal(false);
+                  setCurrentProspect(null);
+                }} 
+                className="text-gray-400 hover:text-white"
+              >
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -1800,7 +1858,7 @@ function ProspectsPageContent() {
                   <button
                     key={status}
                     onClick={() => bulkUpdateStatus(status)}
-                    className={`p-4 text-white rounded-lg font-medium transition-colors ${
+                    className={`p-4 text-white rounded-xl font-medium transition-colors ${
                       status === 'new'
                         ? 'bg-blue-600 hover:bg-blue-700'
                         : status === 'contacted'

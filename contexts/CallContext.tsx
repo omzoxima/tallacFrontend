@@ -19,6 +19,7 @@ interface CallContextType {
   callState: CallState;
   startCall: (prospect: any, callLogId?: string) => void;
   endCall: () => void;
+  closeModal: () => void;
   clearCall: () => void;
 }
 
@@ -48,16 +49,24 @@ export function CallProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Called when user hangs up – keep call info for outcome modal
+  // Called when user clicks end call button – show modal but keep call active
   const endCall = () => {
     setCallState((prev) => ({
       ...prev,
-      isCallActive: false,
+      isCallActive: true, // Keep call active
       showOutcomeModal: !!prev.currentCall,
     }));
   };
 
-  // Called after outcome is saved / discarded
+  // Called when X button is clicked – close modal but keep call active
+  const closeModal = () => {
+    setCallState((prev) => ({
+      ...prev,
+      showOutcomeModal: false,
+    }));
+  };
+
+  // Called when Save/Discard is clicked – end call and close modal
   const clearCall = () => {
     setCallState({
       isCallActive: false,
@@ -67,7 +76,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CallContext.Provider value={{ callState, startCall, endCall, clearCall }}>
+    <CallContext.Provider value={{ callState, startCall, endCall, closeModal, clearCall }}>
       {children}
     </CallContext.Provider>
   );

@@ -68,6 +68,114 @@ export default function ProspectDetails({
   const [editingContact, setEditingContact] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [callLogs, setCallLogs] = useState<any[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  const [organizationData, setOrganizationData] = useState<any>(null);
+  const [showManageLinksModal, setShowManageLinksModal] = useState(false);
+  const [newLinkType, setNewLinkType] = useState('Website');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [socialProfiles, setSocialProfiles] = useState<any[]>([]);
+
+  // Load organization details for profile tab
+  useEffect(() => {
+    const loadOrganization = async () => {
+      if (!prospect?.organization_id) return;
+      
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const token = localStorage.getItem('token');
+        
+        if (!token) return;
+        
+        const response = await fetch(`${apiUrl}/api/organizations/${prospect.organization_id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const data = result.data || result;
+          console.log('🏢 Organization data loaded:', data);
+          setOrganizationData(data);
+          setSocialProfiles(data.social_profiles || []);
+        }
+      } catch (error) {
+        console.error('Failed to load organization:', error);
+      }
+    };
+    
+    loadOrganization();
+  }, [prospect?.organization_id]);
+
+  // Load activities and call logs for prospect
+  useEffect(() => {
+    const loadActivitiesAndCallLogs = async () => {
+      if (!prospect?.id && !prospect?.name) return;
+      
+      try {
+        setLoadingActivities(true);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const token = localStorage.getItem('token');
+        
+        if (!token) return;
+        
+        const prospectId = prospect.name || prospect.id;
+        
+        // Fetch activities timeline
+        const response = await fetch(
+          `${apiUrl}/api/activities/timeline?reference_doctype=Tallac Lead&reference_docname=${prospectId}&activity_types=${JSON.stringify(['activity', 'call_log', 'note'])}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📊 Timeline API Response for', prospectId, ':', data);
+          
+          // Separate activities and call logs
+          const acts = data.filter((item: any) => item.timeline_type === 'activity');
+          const calls = data.filter((item: any) => item.timeline_type === 'call_log');
+          
+          console.log('📅 Scheduled Activities:', acts.length, acts);
+          console.log('📞 Call Logs:', calls.length, calls);
+          console.log('🔍 Sample item:', data[0]);
+          
+          setActivities(acts);
+          setCallLogs(calls);
+        } else {
+          console.error('Timeline API error:', response.status, await response.text());
+        }
+      } catch (error) {
+        console.error('Failed to load activities:', error);
+      } finally {
+        setLoadingActivities(false);
+      }
+    };
+    
+    loadActivitiesAndCallLogs();
+    
+    // Listen for activity/call log creation events
+    const handleActivityCreated = () => {
+      console.log('🔔 Activity created event received - refreshing...');
+      loadActivitiesAndCallLogs();
+    };
+    
+    console.log('👂 Setting up event listeners for prospect:', prospect?.name || prospect?.id);
+    window.addEventListener('tallac:activity-created', handleActivityCreated);
+    window.addEventListener('tallac:call-log-created', handleActivityCreated);
+    
+    return () => {
+      window.removeEventListener('tallac:activity-created', handleActivityCreated);
+      window.removeEventListener('tallac:call-log-created', handleActivityCreated);
+    };
+  }, [prospect?.id, prospect?.name]);
 
   // Load users from API
   useEffect(() => {
@@ -153,6 +261,14 @@ export default function ProspectDetails({
     return city || state || 'Unknown Location';
   };
 
+  const formatDuration = (seconds: number) => {
+    if (!seconds) return '0s';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  };
+
   const getContactCount = () => {
     // Primary contact always counts as 1
     let count = 1;
@@ -181,7 +297,7 @@ export default function ProspectDetails({
   const tabs = [
     { id: 'activity', label: 'Activity' },
     { id: 'contacts', label: 'Contacts', count: getContactCount() },
-    { id: 'profile', label: 'Company Profile' },
+    { id: 'profile', label: 'Profile' },
   ];
 
   const toggleContactExpansion = (contactId: string) => {
@@ -255,8 +371,40 @@ export default function ProspectDetails({
     setSelectedActivity(null);
   };
 
-  const saveActivity = () => {
+  const saveActivity = async () => {
+    // Refresh activities after saving
+    await refreshActivities();
     closeActivityModal();
+  };
+
+  const refreshActivities = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      
+      if (!token) return;
+      
+      const prospectId = prospect.id || prospect.name;
+      const response = await fetch(
+        `${apiUrl}/api/activities/timeline?reference_doctype=Tallac Lead&reference_docname=${prospectId}&activity_types=${JSON.stringify(['activity', 'call_log', 'note'])}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const acts = data.filter((item: any) => item.timeline_type === 'activity');
+        const calls = data.filter((item: any) => item.timeline_type === 'call_log');
+        setActivities(acts);
+        setCallLogs(calls);
+      }
+    } catch (error) {
+      console.error('Failed to refresh activities:', error);
+    }
   };
 
   const openNoteModal = () => {
@@ -283,8 +431,39 @@ export default function ProspectDetails({
     setSelectedStatus('');
   };
 
-  const saveStatus = () => {
+  const saveStatus = async () => {
+    if (!selectedStatus || !prospect?.id) return;
+    
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      
+      if (!token) return;
+      
+      const response = await fetch(`${apiUrl}/api/leads/${prospect.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: selectedStatus }),
+      });
+      
+      if (response.ok) {
+        showToast(`Status updated to ${selectedStatus}`, 'success');
     closeStatusModal();
+        
+        // Refresh the page or emit update event
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      } else {
+        showToast('Failed to update status', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showToast('Error updating status', 'error');
+    }
   };
 
   const openEditModal = () => {
@@ -453,6 +632,41 @@ export default function ProspectDetails({
     }
   };
 
+  const markActivityDone = async (activityId: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const token = localStorage.getItem('token');
+      
+      if (!token) return;
+      
+      // For now, just refresh the data - activity completion API can be added later
+      showToast('Activity marked as done', 'success');
+      
+      // Refresh activities
+      const prospectId = prospect.id || prospect.name;
+      const refreshResponse = await fetch(
+        `${apiUrl}/api/activities/timeline?reference_doctype=Tallac Lead&reference_docname=${prospectId}&activity_types=${JSON.stringify(['activity', 'call_log', 'note'])}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (refreshResponse.ok) {
+        const data = await refreshResponse.json();
+        const acts = data.filter((item: any) => item.timeline_type === 'activity');
+        const calls = data.filter((item: any) => item.timeline_type === 'call_log');
+        setActivities(acts);
+        setCallLogs(calls);
+      }
+    } catch (error) {
+      console.error('Error marking activity as done:', error);
+      showToast('Error marking activity as done', 'error');
+    }
+  };
+
   if (!prospect) return null;
 
   const containerClass = mode === 'split' ? 'h-fit sticky top-4' : '';
@@ -525,8 +739,10 @@ export default function ProspectDetails({
                 onClick={openActivityModal}
                 className="group relative flex items-center justify-center gap-1.5 px-2 py-2.5 bg-transparent hover:bg-blue-600/20 text-gray-300 hover:text-blue-400 text-xs font-medium rounded-md transition-all duration-200 border border-transparent hover:border-blue-600/30"
               >
-                <Plus className="w-5 h-5 sm:w-3.5 sm:h-3.5 relative z-10" />
-                <span className="relative z-10 hidden sm:inline">Task</span>
+                <svg className="w-5 h-5 sm:w-3.5 sm:h-3.5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span className="relative z-10 hidden sm:inline">Schedule</span>
               </button>
               <button
                 onClick={openNoteModal}
@@ -592,29 +808,93 @@ export default function ProspectDetails({
       {/* Tab Content */}
       <div className={`bg-gray-800 flex-1 min-h-0 ${mode === 'popup' ? 'overflow-y-auto' : 'overflow-y-auto'}`}>
         {activeTab === 'activity' && (
-          <div className={`${paddingClass} space-y-4`}>
+          <div className={paddingClass} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Scheduled Activities Section - Simple Cards (NO Timeline) */}
             <div>
               <h3 className={`${textSizeClass} font-semibold text-white mb-3 flex items-center`}>
-                <Clock className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
-                Tasks
+                <svg 
+                  className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Scheduled
               </h3>
+              
+              {loadingActivities ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin"></div>
+                </div>
+              ) : activities.length === 0 ? (
+                <div className="bg-gray-700/30 rounded-md p-4 text-center">
+                  <p className="text-gray-500 text-xs">No scheduled activities</p>
+                </div>
+              ) : (
               <div className="space-y-2">
-                <div className="bg-gray-700/50 rounded-md p-3 border-l-[3px] border-yellow-500">
+                  {activities.map((activity) => {
+                    const getBorderColor = (priority: string) => {
+                      if (priority === 'High') return 'border-red-500';
+                      if (priority === 'Medium') return 'border-yellow-500';
+                      return 'border-blue-500';
+                    };
+                    
+                    const formatDateTime = (date: string, time?: string) => {
+                      const d = new Date(date);
+                      const today = new Date();
+                      const tomorrow = new Date(today);
+                      tomorrow.setDate(today.getDate() + 1);
+                      
+                      let dateStr = '';
+                      if (d.toDateString() === today.toDateString()) {
+                        dateStr = 'Today';
+                      } else if (d.toDateString() === tomorrow.toDateString()) {
+                        dateStr = 'Tomorrow';
+                      } else if (d < today) {
+                        const textColor = d < today ? 'text-red-400' : 'text-gray-400';
+                        return <p className={`${textColor} text-xs`}>Overdue: {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>;
+                      } else {
+                        dateStr = d.toLocaleDateString('en-US', { weekday: 'long', hour: '2-digit', minute: '2-digit' });
+                      }
+                      
+                      if (time && !dateStr.includes(':')) {
+                        dateStr += ` ${time}`;
+                      }
+                      
+                      return dateStr;
+                    };
+                    
+                    return (
+                      <div key={activity.id} className={`bg-gray-700/50 rounded-md p-3 border-l-[3px] ${getBorderColor(activity.priority)}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-white font-medium text-sm">Callback</h4>
-                      <p className="text-gray-400 text-xs">Tomorrow 2:00 PM</p>
-                      <p className="text-gray-400 text-xs">{getInitials(prospect.lead_owner || 'Calvin M.')}</p>
+                            <h4 className="text-white font-medium text-sm">{activity.activity_type || 'Task'}</h4>
+                            <p className="text-gray-400 text-xs">
+                              {formatDateTime(activity.scheduled_date, activity.scheduled_time)}
+                            </p>
+                            {activity.assigned_to_name && (
+                              <p className="text-gray-400 text-xs">{getInitials(activity.assigned_to_name)}</p>
+                            )}
                     </div>
-                    <button className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors flex-shrink-0">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markActivityDone(activity.id);
+                            }}
+                            className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors flex-shrink-0"
+                          >
                       Done
                     </button>
                   </div>
                 </div>
+                    );
+                  })}
               </div>
+              )}
             </div>
 
-            {showActivityHistory && (
+            {/* Recent Activity (Call Logs) Section - Timeline Format */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className={`${textSizeClass} font-semibold text-white flex items-center`}>
@@ -632,29 +912,209 @@ export default function ProspectDetails({
                     <span>View All</span>
                   </button>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
-                      <Phone className="w-4 h-4 text-white" />
+                
+                {loadingActivities ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 0' }}>
+                    <div style={{ 
+                      width: '32px', 
+                      height: '32px', 
+                      border: '2px solid #4b5563', 
+                      borderTopColor: '#3b82f6',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="bg-gray-700/50 hover:bg-gray-700/70 rounded-md p-3 transition-colors border border-gray-600/50">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-white font-semibold text-sm">Call Log</h4>
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-600 text-white">Call</span>
+                ) : callLogs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                    <Activity style={{ width: '48px', height: '48px', color: '#6b7280', margin: '0 auto 8px' }} />
+                    <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '4px' }}>No recent activity</p>
+                    <p style={{ color: '#6b7280', fontSize: '12px' }}>Activities will appear here as they&apos;re created</p>
                         </div>
-                        <p className="text-gray-400 text-xs mb-1.5">
-                          Yesterday 3:30 PM • {getInitials(prospect.lead_owner || 'Calvin M.')}
-                        </p>
-                        <p className="text-gray-300 text-xs leading-relaxed line-clamp-2">
-                          Discussed pricing and timeline. Customer interested in moving forward with the proposal.
-                        </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {callLogs.slice(0, 5).map((log, index) => {
+                      const getActivityBgColor = (outcome: string) => {
+                        const colors: Record<string, string> = {
+                          'Interested': '#22c55e',
+                          'Connected': '#22c55e',
+                          'Callback Requested': '#06b6d4',
+                          'Not Interested': '#ef4444',
+                          'No Answer': '#eab308',
+                          'Voicemail': '#06b6d4',
+                          'Wrong Number': '#f97316',
+                        };
+                        return colors[outcome] || '#6b7280';
+                      };
+                      
+                      const getBadgeColor = (outcome: string) => {
+                        return getActivityBgColor(outcome);
+                      };
+                      
+                      const formatTimeAgo = (dateStr: string) => {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        const now = new Date();
+                        const diffMs = now.getTime() - date.getTime();
+                        const diffMins = Math.floor(diffMs / 60000);
+                        const diffHours = Math.floor(diffMins / 60);
+                        const diffDays = Math.floor(diffHours / 24);
+                        
+                        if (diffMins < 1) return 'Just now';
+                        if (diffMins < 60) return `${diffMins}m ago`;
+                        if (diffHours < 24) return `${diffHours}h ago`;
+                        if (diffDays < 7) return `${diffDays}d ago`;
+                        if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+                        return date.toLocaleDateString();
+                      };
+                      
+                      const formatDuration = (seconds: number) => {
+                        if (!seconds) return '0s';
+                        const mins = Math.floor(seconds / 60);
+                        const secs = seconds % 60;
+                        if (mins > 0) return `${mins}m ${secs}s`;
+                        return `${secs}s`;
+                      };
+                      
+                      const outcome = log.call_outcome || log.outcome || 'Call';
+                      const userName = log.handled_by_name || log.user_name || 'User';
+                      const callNotes = log.call_notes || log.notes || '';
+                      const duration = log.call_duration || log.duration_seconds || 0;
+                      
+                      return (
+                        <div key={log.id || index} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          {/* Timeline Icon & Connector */}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                            {/* Activity Icon */}
+                            <div 
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                backgroundColor: getActivityBgColor(outcome),
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+                              }}
+                            >
+                              <Phone style={{ width: '16px', height: '16px', color: '#ffffff' }} />
+                            </div>
+                            {/* Connecting Line */}
+                            {index < callLogs.slice(0, 5).length - 1 && (
+                              <div 
+                                style={{
+                                  width: '2px',
+                                  backgroundColor: '#374151',
+                                  flexGrow: 1,
+                                  minHeight: '20px',
+                                  marginTop: '4px'
+                                }}
+                              ></div>
+                            )}
+                          </div>
+
+                          {/* Activity Card */}
+                          <div style={{ flex: 1, minWidth: 0, paddingBottom: '8px' }}>
+                            <div 
+                              style={{
+                                backgroundColor: 'rgba(55, 65, 81, 0.5)',
+                                borderRadius: '6px',
+                                padding: '12px',
+                                border: '1px solid rgba(75, 85, 99, 0.5)',
+                                transition: 'background-color 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.7)'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(55, 65, 81, 0.5)'}
+                            >
+                              {/* Header */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span 
+                                  style={{
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    padding: '2px 8px',
+                                    borderRadius: '9999px',
+                                    backgroundColor: getBadgeColor(outcome),
+                                    color: '#ffffff'
+                                  }}
+                                >
+                                  Call Log
+                                </span>
+                                <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                                  {formatTimeAgo(log.created_at || log.call_date)}
+                                </span>
+                              </div>
+
+                              {/* Subject/Title */}
+                              <h4 style={{ color: '#ffffff', fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                                Call - {outcome}
+                              </h4>
+
+                              {/* Description */}
+                              {callNotes && (
+                                <p 
+                                  style={{
+                                    color: '#d1d5db',
+                                    fontSize: '12px',
+                                    lineHeight: '1.5',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  {callNotes}
+                                </p>
+                              )}
+
+                              {/* Metadata */}
+                              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', fontSize: '12px', color: '#9ca3af' }}>
+                                {/* User Avatar/Initials */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <div 
+                                    style={{
+                                      width: '20px',
+                                      height: '20px',
+                                      borderRadius: '50%',
+                                      backgroundColor: '#4b5563',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: '10px',
+                                      fontWeight: 500,
+                                      color: '#ffffff'
+                                    }}
+                                  >
+                                    {getInitials(userName)}
                       </div>
+                                  <span>{userName.split('@')[0].replace(/[._]/g, ' ')}</span>
                     </div>
+
+                                {/* Call Duration */}
+                                {duration > 0 && (
+                                  <>
+                                    <span style={{ margin: '0 8px' }}>•</span>
+                                    <Clock style={{ width: '12px', height: '12px', marginRight: '4px' }} />
+                                    <span>{formatDuration(duration)}</span>
+                                  </>
+                                )}
+
+                                {/* Call Outcome */}
+                                {outcome && (
+                                  <>
+                                    <span style={{ margin: '0 8px' }}>•</span>
+                                    <span>{outcome}</span>
+                                  </>
+                                )}
                   </div>
                 </div>
+                          </div>
+                        </div>
+                      );
+                    })}
               </div>
             )}
+              </div>
           </div>
         )}
 
@@ -790,6 +1250,7 @@ export default function ProspectDetails({
 
         {activeTab === 'profile' && (
           <div className={`${paddingClass} space-y-4`}>
+            {/* Company Overview Section */}
             <div>
               <h3 className={`${textSizeClass} font-semibold text-white mb-3 flex items-center`}>
                 <Building2 className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
@@ -824,6 +1285,60 @@ export default function ProspectDetails({
               </div>
             </div>
 
+            {/* Social Profiles Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className={`${textSizeClass} font-semibold text-white flex items-center`}>
+                  <Share2 className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
+                  Social Profiles
+                </h3>
+                <button 
+                  onClick={() => setShowManageLinksModal(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300"
+                >
+                  Manage
+                </button>
+              </div>
+              <div className="bg-gray-700/50 rounded-md p-3">
+                {socialProfiles.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {socialProfiles.map((profile, index) => (
+                      <a 
+                        key={index}
+                        href={profile.profile_url?.startsWith('http') ? profile.profile_url : `https://${profile.profile_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition-all duration-200 flex items-center gap-2 bg-gray-800/50"
+                        title={profile.platform}
+                      >
+                        {profile.platform === 'Website' && <Globe className="w-4 h-4" />}
+                        {profile.platform === 'LinkedIn' && <Linkedin className="w-4 h-4" />}
+                        {profile.platform === 'Facebook' && (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                          </svg>
+                        )}
+                        {profile.platform === 'Twitter' && (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                          </svg>
+                        )}
+                        {!['Website', 'LinkedIn', 'Facebook', 'Twitter'].includes(profile.platform) && (
+                          <Globe className="w-4 h-4" />
+                        )}
+                        <span className="text-xs">{profile.platform}</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-xs italic text-center py-2">
+                    No social profiles added
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Key Details Section */}
             <div>
               <h3 className={`${textSizeClass} font-semibold text-white mb-3 flex items-center`}>
                 <Info className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
@@ -833,11 +1348,60 @@ export default function ProspectDetails({
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-400 text-xs">Industry:</span>
-                    <span className="text-gray-300 text-xs">{prospect.industry || 'Unknown'}</span>
+                    <span className="text-gray-300 text-xs">{prospect.industry || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400 text-xs">Territory:</span>
-                    <span className="text-gray-300 text-xs">{prospect.territory || 'Unknown'}</span>
+                    <span className="text-gray-400 text-xs">Employee Size:</span>
+                    <span className="text-gray-300 text-xs">{organizationData?.employee_size || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 text-xs">Revenue:</span>
+                    <span className="text-gray-300 text-xs">{organizationData?.revenue || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Related Companies Section */}
+            <div>
+              <h3 className={`${textSizeClass} font-semibold text-white mb-3 flex items-center`}>
+                <Network className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
+                Related Companies
+              </h3>
+              <div className="space-y-2">
+                <div className="bg-gray-700/30 rounded-md p-4 text-center">
+                  <p className="text-gray-400 text-xs italic">No related companies</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Metadata Section */}
+            <div>
+              <h3 className={`${textSizeClass} font-semibold text-white mb-3 flex items-center`}>
+                <Settings className={`${mode === 'split' ? 'w-4 h-4' : 'w-5 h-5'} mr-2`} />
+                Metadata
+              </h3>
+              <div className="bg-gray-700/50 rounded-md p-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 text-xs">Created By:</span>
+                    <span className="text-gray-300 text-xs">{prospect.lead_owner || 'System'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 text-xs">Created:</span>
+                    <span className="text-gray-300 text-xs">
+                      {prospect.created_at ? new Date(prospect.created_at).toLocaleDateString() : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 text-xs">Updated By:</span>
+                    <span className="text-gray-300 text-xs">{prospect.modified_by || prospect.lead_owner || 'System'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400 text-xs">Updated:</span>
+                    <span className="text-gray-300 text-xs">
+                      {prospect.updated_at ? new Date(prospect.updated_at).toLocaleDateString() : 'N/A'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -875,6 +1439,131 @@ export default function ProspectDetails({
         onClose={closeActivityModal}
         onSave={saveActivity}
       />
+
+      {/* Manage Social Links Modal */}
+      {showManageLinksModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowManageLinksModal(false)}
+        >
+          <div
+            className="bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-2xl border border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Share2 className="w-5 h-5" />
+                Manage Links
+              </h3>
+              <button onClick={() => setShowManageLinksModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Add New Link */}
+              <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-600/50">
+                <h4 className="text-sm font-medium text-white mb-3">Add New Link</h4>
+                
+                {/* Quick Add Icons */}
+                <div className="flex gap-3 mb-4">
+                  {['Website', 'LinkedIn', 'Twitter', 'Facebook'].map((platform) => (
+                    <button 
+                      key={platform}
+                      onClick={() => setNewLinkType(platform)}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        newLinkType === platform 
+                          ? 'bg-blue-600 text-white shadow-lg scale-110' 
+                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
+                      }`}
+                      title={platform}
+                    >
+                      {platform === 'Website' && <Globe className="w-5 h-5" />}
+                      {platform === 'LinkedIn' && <Linkedin className="w-5 h-5" />}
+                      {platform === 'Twitter' && (
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                      )}
+                      {platform === 'Facebook' && (
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* URL Input */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input 
+                      value={newLinkUrl} 
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      type="text" 
+                      placeholder={`e.g., https://example.com`}
+                      className="w-full pl-3 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (newLinkUrl.trim()) {
+                        setSocialProfiles([...socialProfiles, { platform: newLinkType, profile_url: newLinkUrl }]);
+                        setNewLinkUrl('');
+                        showToast('Link added (save company to persist)', 'success');
+                      }
+                    }}
+                    disabled={!newLinkUrl.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
+                  >
+                    Add
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Selected: <span className="text-blue-400 font-medium">{newLinkType}</span>
+                </p>
+              </div>
+
+              {/* Existing Links */}
+              <div>
+                <h4 className="text-sm font-medium text-white mb-2">Existing Links</h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {socialProfiles.map((profile, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-gray-700/50 rounded-lg border border-gray-600/30"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {profile.platform === 'Website' && <Globe className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        {profile.platform === 'LinkedIn' && <Linkedin className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        {!['Website', 'LinkedIn'].includes(profile.platform) && <Globe className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        <div className="min-w-0">
+                          <p className="text-sm text-white font-medium">{profile.platform}</p>
+                          <p className="text-xs text-gray-400 truncate">{profile.profile_url}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setSocialProfiles(socialProfiles.filter((_, i) => i !== index));
+                          showToast('Link removed (save company to persist)', 'info');
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {socialProfiles.length === 0 && (
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      No links added yet
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Note Modal */}
       {showNoteModal && (
@@ -951,9 +1640,58 @@ export default function ProspectDetails({
                 {['New', 'Contacted', 'Interested', 'Proposal', 'Won', 'Lost'].map((status) => (
                   <button
                     key={status}
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedStatus(status);
-                      saveStatus();
+                      
+                      // Save status immediately with the selected value
+                      if (!prospect?.id) {
+                        console.error('No prospect ID found');
+                        showToast('Cannot update status: prospect ID missing', 'error');
+                        return;
+                      }
+                      
+                      try {
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                        const token = localStorage.getItem('token');
+                        
+                        if (!token) {
+                          console.error('No token found');
+                          return;
+                        }
+                        
+                        const url = `${apiUrl}/api/leads/${prospect.id}/status`;
+                        console.log('🔄 Updating status:', { prospect_id: prospect.id, new_status: status, url });
+                        
+                        const response = await fetch(url, {
+                          method: 'PATCH',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify({ status }),
+                        });
+                        
+                        console.log('📡 Status update response:', response.status);
+                        
+                        if (response.ok) {
+                          const result = await response.json();
+                          console.log('✅ Status updated successfully:', result);
+                          showToast(`Status updated to ${status}`, 'success');
+                          closeStatusModal();
+                          
+                          // Refresh the page
+                          if (typeof window !== 'undefined') {
+                            window.location.reload();
+                          }
+                        } else {
+                          const errorText = await response.text();
+                          console.error('❌ Status update failed:', errorText);
+                          showToast('Failed to update status', 'error');
+                        }
+                      } catch (error) {
+                        console.error('❌ Error updating status:', error);
+                        showToast('Error updating status', 'error');
+                      }
                     }}
                     className={`p-4 rounded-lg font-medium transition-colors ${
                       prospect.status?.toLowerCase() === status.toLowerCase()

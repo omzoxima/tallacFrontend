@@ -1,40 +1,29 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { X, Phone, PhoneOff, Voicemail, Ban, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, CheckCircle, Phone, Voicemail, Clock, UserX, Ban, ChevronDown } from 'lucide-react';
 import { useCall } from '@/contexts/CallContext';
 import { showToast } from './Toast';
 
 const OUTCOMES = [
-  { key: 'Connected', label: 'Connected' },
-  { key: 'No Answer', label: 'No Answer' },
-  { key: 'Voicemail', label: 'Voicemail' },
-  { key: 'Busy', label: 'Busy' },
-  { key: 'Wrong Number', label: 'Wrong Number' },
-  { key: 'Do Not Disturb', label: 'Do Not Disturb' },
-];
-
-const QUICK_TAGS = [
-  'Gatekeeper Blocked',
-  'Sent Pricing',
-  'Asked for Email',
-  'Not Interested',
-  'Callback Requested',
+  { key: 'Connected', label: 'Connected', icon: CheckCircle, color: '#10b981' },
+  { key: 'No Answer', label: 'No Answer', icon: Phone, color: '#eab308' },
+  { key: 'Voicemail', label: 'Voicemail', icon: Voicemail, color: '#06b6d4' },
+  { key: 'Busy', label: 'Busy', icon: Clock, color: '#f97316' },
+  { key: 'Wrong Number', label: 'Wrong Number', icon: UserX, color: '#ef4444' },
+  { key: 'Do Not Disturb', label: 'Do Not Disturb', icon: Ban, color: '#a855f7' },
 ];
 
 function formatDuration(seconds: number) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  const mm = mins.toString().padStart(2, '0');
-  const ss = secs.toString().padStart(2, '0');
-  return `${mm}:${ss}`;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 export default function RecordCallOutcomeModal() {
-  const { callState, clearCall } = useCall();
-  const [selectedOutcome, setSelectedOutcome] = useState<string>('Connected');
+  const { callState, closeModal, clearCall } = useCall();
+  const [selectedOutcome, setSelectedOutcome] = useState<string>('');
   const [notes, setNotes] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
@@ -56,24 +45,16 @@ export default function RecordCallOutcomeModal() {
   }, [isOpen, callState.currentCall]);
 
   useEffect(() => {
-    // Reset state when modal opens
     if (isOpen) {
-      setSelectedOutcome('Connected');
+      setSelectedOutcome('');
       setNotes('');
-      setTags([]);
     }
   }, [isOpen]);
 
-  const canSave = useMemo(() => {
-    return !!selectedOutcome && notes.trim().length > 0;
-  }, [selectedOutcome, notes]);
+  const canSave = selectedOutcome && notes.trim();
 
-  const toggleTag = (tag: string) => {
-    setTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
-  };
-
-  const handleClose = () => {
-    clearCall();
+  const handleMinimize = () => {
+    closeModal();
   };
 
   const handleDiscard = () => {
@@ -81,8 +62,7 @@ export default function RecordCallOutcomeModal() {
   };
 
   const handleSave = async () => {
-    if (!callState.currentCall) return;
-    if (!canSave || saving) return;
+    if (!callState.currentCall || !canSave || saving) return;
 
     try {
       setSaving(true);
@@ -95,7 +75,6 @@ export default function RecordCallOutcomeModal() {
         phone_number: callState.currentCall.phoneNumber,
         outcome: selectedOutcome,
         notes: notes.trim(),
-        tags,
         duration_seconds: elapsed,
       };
 
@@ -114,6 +93,12 @@ export default function RecordCallOutcomeModal() {
       }
 
       showToast('Call outcome recorded successfully', 'success');
+      
+      // Dispatch event to refresh ProspectDetails
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tallac:call-log-created'));
+      }
+      
       clearCall();
     } catch (error: unknown) {
       const errorMessage = (error instanceof Error && error.message) || 'Unable to save call outcome';
@@ -123,69 +108,169 @@ export default function RecordCallOutcomeModal() {
     }
   };
 
+  const addQuickNote = (tag: string) => {
+    setNotes(notes + (notes ? ' ' : '') + `[${tag}]`);
+  };
+
   if (!isOpen || !callState.currentCall) return null;
 
   const { prospectName } = callState.currentCall;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-start justify-center bg-black/70 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-700 max-w-2xl w-full mt-6 mb-10 flex flex-col">
+    <>
+      {/* Inject critical CSS with highest specificity */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .call-modal-overlay-xyz123 {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          z-index: 9999 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          background-color: rgba(0, 0, 0, 0.8) !important;
+          backdrop-filter: blur(4px) !important;
+          padding: 16px !important;
+        }
+        .call-modal-content-xyz123 {
+          background-color: #1f2937 !important;
+          border-radius: 12px !important;
+          border: 1px solid #374151 !important;
+          max-width: 672px !important;
+          width: 100% !important;
+          max-height: 90vh !important;
+          overflow-y: auto !important;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+          position: relative !important;
+          z-index: 10000 !important;
+        }
+      `}} />
+      
+      <div className="call-modal-overlay-xyz123">
+        <div className="call-modal-content-xyz123"
+        >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-800">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-gray-400">RECORD CALL OUTCOME</p>
-            <p className="text-sm sm:text-base font-medium text-white mt-1 truncate">
-              {prospectName} • {formatDuration(elapsed)}
-            </p>
+        <div 
+          style={{
+            padding: '16px 24px',
+            borderBottom: '1px solid #374151'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ flex: 1 }}>
+              <p 
+                style={{
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#9ca3af',
+                  marginBottom: '4px'
+                }}
+              >
+                RECORD CALL OUTCOME
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <p style={{ fontSize: '18px', fontWeight: 600, color: '#ffffff' }}>
+                  {prospectName}
+                </p>
+                <span style={{ fontSize: '14px', color: '#9ca3af' }}>
+                  • {formatDuration(elapsed)}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={handleMinimize}
+              style={{
+                padding: '6px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                cursor: 'pointer',
+                borderRadius: '4px',
+                transition: 'color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
+              title="Minimize"
+            >
+              <ChevronDown style={{ width: '20px', height: '20px' }} />
+            </button>
           </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Body */}
-        <div className="px-4 sm:px-6 py-5 space-y-6">
+        <div style={{ padding: '20px 24px' }}>
           {/* Outcome */}
-          <div>
-            <p className="text-xs font-semibold text-gray-300 mb-3 tracking-wide">OUTCOME</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div style={{ marginBottom: '20px' }}>
+            <p 
+              style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#9ca3af',
+                marginBottom: '12px'
+              }}
+            >
+              OUTCOME
+            </p>
+            <div 
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '12px'
+              }}
+            >
               {OUTCOMES.map((o) => {
                 const isSelected = selectedOutcome === o.key;
-                // Color mapping based on outcome type
-                const getButtonColors = () => {
-                  if (isSelected) {
-                    switch (o.key) {
-                      case 'Connected': return 'bg-green-600 border-green-500 ring-2 ring-green-400';
-                      case 'No Answer': return 'bg-yellow-600 border-yellow-500 ring-2 ring-yellow-400';
-                      case 'Voicemail': return 'bg-blue-600 border-blue-500 ring-2 ring-blue-400';
-                      case 'Busy': return 'bg-orange-600 border-orange-500 ring-2 ring-orange-400';
-                      case 'Wrong Number': return 'bg-red-600 border-red-500 ring-2 ring-red-400';
-                      case 'Do Not Disturb': return 'bg-purple-600 border-purple-500 ring-2 ring-purple-400';
-                      default: return 'bg-gray-800 border-gray-700 ring-2 ring-gray-600';
-                    }
-                  }
-                  return 'bg-gray-800 border-gray-700 hover:border-gray-500';
-                };
+                const Icon = o.icon;
                 
                 return (
                   <button
                     key={o.key}
                     type="button"
                     onClick={() => setSelectedOutcome(o.key)}
-                    className={`flex flex-col justify-center items-center gap-2 rounded-xl px-4 py-4 border transition-all duration-150 ${getButtonColors()}`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '16px 12px',
+                      borderRadius: '8px',
+                      border: isSelected ? `2px solid #3b82f6` : '2px solid #374151',
+                      backgroundColor: '#111827',
+                      color: '#9ca3af',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#1f2937';
+                        e.currentTarget.style.borderColor = '#4b5563';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#111827';
+                        e.currentTarget.style.borderColor = '#374151';
+                      }
+                    }}
                   >
-                    <span className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 text-white">
-                      {o.key === 'Connected' && <Phone className="w-4 h-4" />}
-                      {o.key === 'No Answer' && <PhoneOff className="w-4 h-4" />}
-                      {o.key === 'Voicemail' && <Voicemail className="w-4 h-4" />}
-                      {o.key === 'Busy' && <AlertCircle className="w-4 h-4" />}
-                      {o.key === 'Wrong Number' && <AlertCircle className="w-4 h-4" />}
-                      {o.key === 'Do Not Disturb' && <Ban className="w-4 h-4" />}
-                    </span>
-                    <span className="text-sm font-medium text-white">{o.label}</span>
+                    <div 
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: o.color
+                      }}
+                    >
+                      <Icon style={{ width: '20px', height: '20px', color: '#ffffff' }} />
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 500 }}>{o.label}</span>
                   </button>
                 );
               })}
@@ -193,54 +278,111 @@ export default function RecordCallOutcomeModal() {
           </div>
 
           {/* Call Notes */}
-          <div>
-            <p className="text-xs font-semibold text-gray-300 mb-2 tracking-wide">
-              CALL NOTES <span className="text-red-500">*</span>
+          <div style={{ marginBottom: '20px' }}>
+            <p 
+              style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#9ca3af',
+                marginBottom: '8px'
+              }}
+            >
+              CALL NOTES <span style={{ color: '#ef4444' }}>*</span>
             </p>
             <textarea
-              className="w-full min-h-[140px] bg-gray-900/70 border border-blue-500 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500"
-              placeholder="Enter call notes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              placeholder="Enter call notes..."
+              style={{
+                width: '100%',
+                height: '128px',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #374151',
+                backgroundColor: '#111827',
+                color: '#e5e7eb',
+                fontSize: '14px',
+                resize: 'none',
+                fontFamily: 'Inter, sans-serif',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#3b82f6';
+                e.currentTarget.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.5)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#374151';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
           </div>
 
-          {/* Quick tags */}
-          <div className="flex flex-wrap gap-2">
-            {QUICK_TAGS.map((tag) => {
-              const active = tags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-                    active
-                      ? 'bg-gray-100 text-gray-900 border-gray-400'
-                      : 'bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700'
-                  }`}
-                >
-                  {tag}
-                </button>
-              );
-            })}
+          {/* Quick Tags */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {['Gatekeeper Blocked', 'Sent Pricing', 'Asked for Email', 'Not Interested', 'Callback Requested'].map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => addQuickNote(tag)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '9999px',
+                  border: '1px solid #374151',
+                  backgroundColor: '#111827',
+                  color: '#9ca3af',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1f2937'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#111827'}
+              >
+                {tag}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-800 bg-gray-900 rounded-b-2xl">
-          <div className="flex items-center gap-4 text-xs text-gray-400">
+        <div 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            borderTop: '1px solid #374151'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
             <button
               type="button"
-              onClick={handleClose}
-              className="hover:text-white"
+              onClick={handleMinimize}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                cursor: 'pointer',
+                transition: 'color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
             >
               Minimize
             </button>
             <button
               type="button"
               onClick={handleDiscard}
-              className="hover:text-red-400"
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#9ca3af',
+                cursor: 'pointer',
+                transition: 'color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#9ca3af'}
             >
               Discard
             </button>
@@ -249,18 +391,34 @@ export default function RecordCallOutcomeModal() {
             type="button"
             onClick={handleSave}
             disabled={!canSave || saving}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors ${
-              canSave && !saving
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }`}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: canSave && !saving ? '#7c3aed' : '#374151',
+              color: canSave && !saving ? '#ffffff' : '#6b7280',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: canSave && !saving ? 'pointer' : 'not-allowed',
+              transition: 'background-color 0.2s',
+              opacity: canSave && !saving ? 1 : 0.5
+            }}
+            onMouseOver={(e) => {
+              if (canSave && !saving) {
+                e.currentTarget.style.backgroundColor = '#6d28d9';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (canSave && !saving) {
+                e.currentTarget.style.backgroundColor = '#7c3aed';
+              }
+            }}
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
     </div>
+    </>
   );
 }
-
-

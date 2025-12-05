@@ -195,6 +195,11 @@ export default function TallacActivityModal({
         showToast('Activity created successfully!', 'success');
       }
 
+      // Dispatch event to refresh ProspectDetails
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tallac:activity-created'));
+      }
+
       onSave(activityPayload);
       onClose();
     } catch (error: unknown) {
